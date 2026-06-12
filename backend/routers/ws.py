@@ -72,49 +72,12 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str = Query("")):
                         if state.players[player_id]["cash"] < 500_000_000:
                             state.players[player_id]["cash"] = 500_000_000
                 mark_dirty(player_id)  # persist nickname to DB
-                # Send initial portfolio update
-                pdata = state.players[player_id]
-                cash = pdata["cash"]
-                total_assets = cash
-                holdings_list = []
-                for sym, h in state.holdings.get(player_id, {}).items():
-                    sp = state.stocks.get(sym, {})
-                    cur_price = sp.get("price", 0)
-                    mv = round(h["qty"] * cur_price, 2)
-                    pnl = round(mv - h["qty"] * h["avg_cost"], 2) if h["qty"] > 0 else 0
-                    short_mv = round(h.get("short_qty", 0) * cur_price, 2)
-                    short_pnl = round((h.get("short_avg_cost", 0) - cur_price) * h.get("short_qty", 0), 2) if h.get("short_qty", 0) > 0 else 0
-                    holdings_list.append({
-                        "symbol": sym, "name": sp.get("name", sym),
-                        "quantity": h["qty"], "avg_cost": h["avg_cost"],
-                        "current_price": cur_price, "market_value": mv,
-                        "pnl": pnl, "frozen_qty": h.get("frozen_qty", 0),
-                        "short_qty": h.get("short_qty", 0),
-                        "short_avg_cost": h.get("short_avg_cost", 0),
-                        "short_market_value": short_mv, "short_pnl": short_pnl,
-                    })
-                    total_assets += mv - short_mv
-                margin_debt = pdata.get("margin_debt", 0)
-                total_assets -= margin_debt
-                frozen_cash = pdata.get("frozen_cash", 0)
-                buying_power = round((cash - frozen_cash) * 2.0, 2)
-                total_pnl = round(total_assets - STARTING_CASH, 2)
-                pnl_percent = round((total_pnl / STARTING_CASH) * 100, 2) if STARTING_CASH > 0 else 0
-                day_start = state.day_start_assets.get(player_id, total_assets)
+                # Send initial portfolio update using shared function
+                from backend.game_engine import calc_player_portfolio
+                pf = calc_player_portfolio(state, player_id, pdata, state.holdings.get(player_id, {}))
                 await manager.send_to(GLOBAL_ROOM_ID, player_id, {
                     "type": "portfolio_update",
-                    "data": {
-                        "cash": round(cash, 2),
-                        "holdings": holdings_list,
-                        "total_assets": round(total_assets, 2),
-                        "frozen_cash": frozen_cash,
-                        "margin_debt": margin_debt,
-                        "buying_power": buying_power,
-                        "total_pnl": total_pnl,
-                        "pnl_percent": pnl_percent,
-                        "day_start_assets": day_start,
-                        "is_admin": is_admin,
-                    },
+                    "data": {**pf, "is_admin": is_admin},
                 })
 
             elif msg_type == "trade":
@@ -151,52 +114,15 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str = Query("")):
                     })
 
             elif msg_type == "refresh_portfolio":
-                from backend.game_engine import get_global_state, STARTING_CASH
+                from backend.game_engine import get_global_state, calc_player_portfolio
                 state = get_global_state()
                 pdata = state.players.get(player_id)
                 if pdata:
-                    cash = pdata["cash"]
-                    total_assets = cash
-                    holdings_list = []
-                    for sym, h in state.holdings.get(player_id, {}).items():
-                        sp = state.stocks.get(sym, {})
-                        cur_price = sp.get("price", 0)
-                        mv = round(h["qty"] * cur_price, 2)
-                        pnl = round(mv - h["qty"] * h["avg_cost"], 2) if h["qty"] > 0 else 0
-                        short_mv = round(h.get("short_qty", 0) * cur_price, 2)
-                        short_pnl = round((h.get("short_avg_cost", 0) - cur_price) * h.get("short_qty", 0), 2) if h.get("short_qty", 0) > 0 else 0
-                        holdings_list.append({
-                            "symbol": sym, "name": sp.get("name", sym),
-                            "quantity": h["qty"], "avg_cost": h["avg_cost"],
-                            "current_price": cur_price, "market_value": mv,
-                            "pnl": pnl, "frozen_qty": h.get("frozen_qty", 0),
-                            "short_qty": h.get("short_qty", 0),
-                            "short_avg_cost": h.get("short_avg_cost", 0),
-                            "short_market_value": short_mv, "short_pnl": short_pnl,
-                        })
-                        total_assets += mv - short_mv
-                    margin_debt = pdata.get("margin_debt", 0)
-                    total_assets -= margin_debt
-                    frozen_cash = pdata.get("frozen_cash", 0)
-                    buying_power = round((cash - frozen_cash) * 2.0, 2)
-                    total_pnl = round(total_assets - STARTING_CASH, 2)
-                    pnl_percent = round((total_pnl / STARTING_CASH) * 100, 2) if STARTING_CASH > 0 else 0
-                    day_start = state.day_start_assets.get(player_id, total_assets)
+                    pf = calc_player_portfolio(state, player_id, pdata, state.holdings.get(player_id, {}))
                     await manager.send_to(GLOBAL_ROOM_ID, player_id, {
                         "type": "portfolio_update",
-                        "data": {
-                            "cash": round(cash, 2),
-                            "holdings": holdings_list,
-                            "total_assets": round(total_assets, 2),
-                            "frozen_cash": frozen_cash,
-                            "margin_debt": margin_debt,
-                            "buying_power": buying_power,
-                            "total_pnl": total_pnl,
-                            "pnl_percent": pnl_percent,
-                            "day_start_assets": day_start,
-                        "is_admin": pdata.get("is_admin", False),
-                    },
-                })
+                        "data": pf,
+                    })
 
     except WebSocketDisconnect:
         from backend.game_engine import save_player_state
