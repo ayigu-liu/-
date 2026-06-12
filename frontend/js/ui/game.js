@@ -107,6 +107,13 @@ async function loadInitialKline() {
     if (data && data.length > 0) {
       if (!gameState.candleData['4t']) gameState.candleData['4t'] = {};
       gameState.candleData['4t'][sym] = data;
+      // Trigger chart render if kline mode
+      if (gameState.klinePeriod && gameState.klinePeriod !== 'chart') {
+        var kp = gameState.klinePeriod.replace('kline-', '');
+        if (kp === '4t' && typeof setKlineData === 'function') {
+          setKlineData(data);
+        }
+      }
     }
   } catch (e) {
     // Silent — WS will provide data when connected
@@ -353,30 +360,22 @@ function renderOrderBook() {
     return;
   }
 
-  // Find max total for depth visualization
+  // Max qty for depth bar scaling
+  var allQty = bids.concat(asks);
   var maxQty = 1;
-  bids.concat(asks).forEach(function(o) { if (o.quantity > maxQty) maxQty = o.quantity; });
+  allQty.forEach(function(o) { if (o.quantity > maxQty) maxQty = o.quantity; });
 
-  var html = '<div class="ob-grid">' +
-    '<div class="ob-header"><span>买盘</span><span>价格</span><span>数量</span></div>';
+  var bestBid = bids.length > 0 ? bids[0].price : 0;
+  var bestAsk = asks.length > 0 ? asks[0].price : 0;
+  var spread = (bestBid > 0 && bestAsk > 0) ? (bestAsk - bestBid).toFixed(2) : '--';
+  var mid = (bestBid > 0 && bestAsk > 0) ? ((bestBid + bestAsk) / 2).toFixed(2) : '--';
 
-  // Bids (buys) - show in descending price, most recent at top
-  bids.reverse().forEach(function(o) {
-    var pct = (o.quantity / maxQty * 100).toFixed(0);
-    html += '<div class="ob-row ob-bid">' +
-      '<div class="ob-bar ob-bar-bid" style="width:' + pct + '%"></div>' +
-      '<span class="ob-price ob-bid-price">' + o.price.toFixed(2) + '</span>' +
-      '<span class="ob-qty">' + (o.quantity >= 10000 ? (o.quantity/10000).toFixed(1)+'万' : o.quantity) + '</span>' +
-      '</div>';
-  });
+  var html = '';
 
-  // Spread line
-  var mid = (bids.length > 0 && asks.length > 0) ?
-    ((bids[bids.length-1].price + asks[0].price) / 2).toFixed(2) : '--';
-  html += '<div class="ob-spread"><span>价差</span><span>' + mid + '</span></div>';
-
-  // Asks (sells)
-  asks.forEach(function(o) {
+  // Asks (sells) — show lowest first, reverse so best ask at bottom
+  html += '<div class="ob-section-header">卖盘</div>';
+  var revAsks = asks.slice().reverse();
+  revAsks.forEach(function(o) {
     var pct = (o.quantity / maxQty * 100).toFixed(0);
     html += '<div class="ob-row ob-ask">' +
       '<div class="ob-bar ob-bar-ask" style="width:' + pct + '%"></div>' +
@@ -385,7 +384,23 @@ function renderOrderBook() {
       '</div>';
   });
 
-  html += '</div>';
+  // Spread + mid price
+  html += '<div class="ob-spread">' +
+    '<span>价差 <b>' + spread + '</b></span>' +
+    '<span>中间价 <b>' + mid + '</b></span>' +
+    '</div>';
+
+  // Bids (buys) — highest first
+  html += '<div class="ob-section-header">买盘</div>';
+  bids.forEach(function(o) {
+    var pct = (o.quantity / maxQty * 100).toFixed(0);
+    html += '<div class="ob-row ob-bid">' +
+      '<div class="ob-bar ob-bar-bid" style="width:' + pct + '%"></div>' +
+      '<span class="ob-price ob-bid-price">' + o.price.toFixed(2) + '</span>' +
+      '<span class="ob-qty">' + (o.quantity >= 10000 ? (o.quantity/10000).toFixed(1)+'万' : o.quantity) + '</span>' +
+      '</div>';
+  });
+
   el.innerHTML = html;
 }
 
