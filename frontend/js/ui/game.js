@@ -1194,13 +1194,13 @@ async function loadIndustryMarket() {
     data.forEach(function(ind) {
       var cycleCls = ind.cycle === 'boom' ? 'color:#22c55e' : (ind.cycle === 'recession' ? 'color:#ef4444' : 'color:#fbbf24');
       var cycleName = ind.cycle === 'boom' ? '繁荣' : (ind.cycle === 'recession' ? '衰退' : '正常');
-      var totalMcapStr = ind.total_market_cap >= 100000000 ? (ind.total_market_cap / 100000000).toFixed(2) + '亿' : (ind.total_market_cap >= 10000 ? (ind.total_market_cap / 10000).toFixed(2) + '万' : '¥' + (ind.total_market_cap || 0));
+      var totalRevStr = ind.total_revenue >= 100000000 ? (ind.total_revenue / 100000000).toFixed(2) + '亿' : (ind.total_revenue >= 10000 ? (ind.total_revenue / 10000).toFixed(2) + '万' : '¥' + (ind.total_revenue || 0));
 
       html += '<div style="background:#1a2a35;border:1px solid #2a4050;border-radius:6px;margin-bottom:8px;padding:8px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #2a4050;">' +
         '<span style="font-weight:700;font-size:13px;color:#c0d0d8;">' + (ind.industry_name || '--') + '</span>' +
         '<span style="font-size:11px;padding:1px 6px;border-radius:8px;background:#1a3a2a;' + cycleCls + '">' + cycleName + '</span>' +
-        '<span style="font-size:11px;color:#8899a6;">市值合计: ' + totalMcapStr + '</span>' +
+        '<span style="font-size:11px;color:#8899a6;">营收合计: ' + totalRevStr + '</span>' +
         '</div>';
 
       if (ind.companies && ind.companies.length > 0) {
@@ -1411,6 +1411,56 @@ var selectedActionName = '';
 var selectedMinCost = 0;
 
 // ============================================================
+// 股东列表
+// ============================================================
+function showShareholders() {
+  var modal = document.getElementById('quarterly-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'quarterly-modal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.innerHTML = '<div class="modal-box" style="width:500px;max-height:80vh;display:flex;flex-direction:column">' +
+      '<div class="modal-title">📋 股东列表</div>' +
+      '<div id="quarterly-content" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
+      '<div class="modal-actions"><button class="modal-btn" onclick="hideQuarterlyHistory()">关闭</button></div>' +
+    '</div>';
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  var el = document.getElementById('quarterly-content');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:#8899a6">加载中...</div>';
+
+  apiGet('/api/company/shareholders').then(function(data) {
+    var html = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">股票代码: <b style="color:#c0d0d8;">' + data.symbol + '</b> | 流通股: <b style="color:#c0d0d8;">' + (data.shares_outstanding || 0).toLocaleString() + '</b> | 已流通: <b style="color:#22c55e;">' + data.circulation_pct + '%</b></div>';
+    if (!data.shareholders || data.shareholders.length === 0) {
+      html += '<div style="text-align:center;padding:30px;color:#8899a6;">暂无股东</div>';
+    } else {
+      html += '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+        '<thead><tr style="background:#1a2a35;color:#8899a6">' +
+        '<th style="padding:6px;text-align:left;border-bottom:1px solid #2a4050;">排名</th>' +
+        '<th style="padding:6px;text-align:left;border-bottom:1px solid #2a4050;">股东</th>' +
+        '<th style="padding:6px;text-align:right;border-bottom:1px solid #2a4050;">持股</th>' +
+        '<th style="padding:6px;text-align:right;border-bottom:1px solid #2a4050;">占比</th>' +
+        '</tr></thead><tbody>';
+      data.shareholders.forEach(function(sh, idx) {
+        html += '<tr style="border-bottom:1px solid #1a2a35;">' +
+          '<td style="padding:4px 6px;color:#8899a6;">' + (idx + 1) + '</td>' +
+          '<td style="padding:4px 6px;color:#c0d0d8;">' + escapeHtml(sh.nickname || sh.player_id) + '</td>' +
+          '<td style="padding:4px 6px;text-align:right;color:#c0d0d8;">' + sh.qty.toLocaleString() + '</td>' +
+          '<td style="padding:4px 6px;text-align:right;color:#fbbf24;">' + sh.pct + '%</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+    el.innerHTML = html;
+  }).catch(function(e) {
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#ef4444">加载失败: ' + (e.message || '') + '</div>';
+  });
+}
+
+// ============================================================
 // 季度财报历史
 // ============================================================
 function showQuarterlyHistory() {
@@ -1446,62 +1496,77 @@ async function loadQuarterlyHistory() {
       el.innerHTML = '<div class="fin-empty">暂无季度数据</div>';
       return;
     }
-    var html = '';
-    records.forEach(function(r) {
+    var html = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">共 ' + records.length + ' 个季度（点击展开）</div>';
+    records.forEach(function(r, idx) {
       var margin = r.revenue > 0 ? (r.profit / r.revenue * 100).toFixed(1) + '%' : '--';
       var profitCls = r.profit >= 0 ? '#22c55e' : '#ef4444';
-      var cycleCls = r.industry_cycle === 'boom' ? 'color:#22c55e;' : (r.industry_cycle === 'recession' ? 'color:#ef4444;' : 'color:#fbbf24;');
+      var cycleCls = r.industry_cycle === 'boom' ? '#22c55e' : (r.industry_cycle === 'recession' ? '#ef4444' : '#fbbf24');
       var cycleName = r.industry_cycle === 'boom' ? '繁荣' : (r.industry_cycle === 'recession' ? '衰退' : '正常');
       var revGrowthStr = r.revenue_growth > 0 ? ('<span style=\"color:#22c55e\">↑' + r.revenue_growth + '%</span>') : (r.revenue_growth < 0 ? '<span style=\"color:#ef4444\">↓' + Math.abs(r.revenue_growth) + '%</span>' : '<span style=\"color:#8899a6\">--</span>');
       var profitGrowthStr = r.profit_growth > 0 ? ('<span style=\"color:#22c55e\">↑' + r.profit_growth + '%</span>') : (r.profit_growth < 0 ? '<span style=\"color:#ef4444\">↓' + Math.abs(r.profit_growth) + '%</span>' : '<span style=\"color:#8899a6\">--</span>');
-      var costPct = r.revenue > 0 ? ((r.salary_cost + r.rd_spend + r.fixed_cost) / r.revenue * 100).toFixed(1) + '%' : '--';
 
-      html += '<div style="background:#1a2a35;border:1px solid #2a4050;border-radius:6px;margin-bottom:10px;padding:10px;">' +
-        // Header: period + cycle badge
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #2a4050;">' +
+      var detailId = 'qdetail-' + idx;
+      // Accordion: click header to toggle details
+      html += '<div style="background:#1a2a35;border:1px solid #2a4050;border-radius:6px;margin-bottom:6px;overflow:hidden;">' +
+        '<div onclick="var d=document.getElementById(\'' + detailId + '\');d.style.display=d.style.display==\'none\'?\'\':\'none\';this.querySelector(\'.q-arrow\').textContent=d.style.display==\'none\'?\'▶\':\'▼\'" style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;cursor:pointer;user-select:none;transition:background 0.15s;" onmouseover="this.style.background=\'#1e2a3d\'" onmouseout="this.style.background=\'transparent\'">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<span class="q-arrow" style="font-size:10px;color:#8899a6;">▶</span>' +
         '<span style="font-weight:700;font-size:13px;color:#c0d0d8;">' + (r.period || 'Q' + r.quarter) + '</span>' +
-        '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#1a3a2a;' + cycleCls + '">' + cycleName + '</span>' +
+        '<span style="font-size:11px;padding:1px 6px;border-radius:8px;background:#1a3a2a;color:' + cycleCls + '">' + cycleName + '</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:12px;font-size:11px;color:#8899a6;">' +
+        '<span>营收 <b style="color:#c0d0d8;">' + fmt(r.revenue) + '</b></span>' +
+        '<span>利润 <b style="color:' + profitCls + ';">' + fmt(r.profit) + '</b></span>' +
+        '<span>利润率 <b style="color:#c0d0d8;">' + margin + '</b></span>' +
+        '</div>' +
+        '</div>' +
+        '<div id="' + detailId + '" style="display:none;padding:8px 10px;border-top:1px solid #2a4050;font-size:12px;">' +
+
+        // Revenue breakdown
+        '<div style="margin-bottom:6px;padding:4px 0;border-bottom:1px solid #253545;">' +
+        '<div style="color:#8899a6;margin-bottom:3px;">📈 营收构成</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">' +
+        '<span>基础营收</span><span style="color:#c0d0d8;">' + fmt(r.base_revenue) + '</span>' +
+        '<span>行业系数</span><span style="color:#c0d0d8;">' + (r.cycle_mult || 1).toFixed(2) + 'x</span>' +
+        '<span>市场环境</span><span style="color:' + ((r.market_condition || 0) >= 0 ? '#22c55e' : '#ef4444') + ';">' + ((r.market_condition || 0) >= 0 ? '+' : '') + ((r.market_condition || 0) * 100).toFixed(1) + '%</span>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;">' +
+        '<span>利息收入</span><span style="color:#22c55e;">' + fmt(r.interest_income) + '</span>' +
+        '<span>营收增长</span>' + revGrowthStr +
+        '<span>利润增长</span>' + profitGrowthStr +
+        '</div></div>' +
+
+        // Cost breakdown
+        '<div style="margin-bottom:6px;padding:4px 0;border-bottom:1px solid #253545;">' +
+        '<div style="color:#8899a6;margin-bottom:3px;">📉 成本支出</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;">' +
+        '<span>员工薪资 <b style="color:#c0d0d8;">' + fmt(r.salary_cost) + '</b></span>' +
+        '<span>研发投入 <b style="color:#c0d0d8;">' + fmt(r.rd_spend) + '</b></span>' +
+        '<span>固定成本 <b style="color:#c0d0d8;">' + fmt(r.fixed_cost) + '</b></span>' +
+        '<span>股东分红 <b style="color:#c0d0d8;">' + fmt(r.dividend_paid) + '</b></span>' +
+        '</div>' +
+        '<div style="font-size:11px;margin-top:4px;color:#8899a6;">总成本 <b style="color:#c0d0d8;">' + fmt(r.salary_cost + r.rd_spend + r.fixed_cost) + '</b> = 营收 ' + fmt(r.revenue) + ' - 利润 ' + fmt(r.profit) + (r.interest_income > 0 ? ' + 利息 ' + fmt(r.interest_income) : '') + '</div>' +
         '</div>' +
 
-        // Row 1: Revenue + Profit + Margin
-        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;">' +
-        '<span style="color:#8899a6;">营收</span><span style="color:#c0d0d8;font-weight:600;">' + fmt(r.revenue) + '</span>' +
-        '<span style="color:#8899a6;">利润</span><span style="color:' + profitCls + ';font-weight:600;">' + fmt(r.profit) + '</span>' +
-        '<span style="color:#8899a6;">利润率</span><span style="color:#c0d0d8;">' + margin + '</span>' +
+        // Per-share metrics
+        '<div style="margin-bottom:6px;padding:4px 0;border-bottom:1px solid #253545;">' +
+        '<div style="color:#8899a6;margin-bottom:3px;">每股指标</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;">' +
+        '<span>EPS <b style="color:#c0d0d8;">' + (r.eps || 0).toFixed(2) + '</b></span>' +
+        '<span>NAV <b style="color:#c0d0d8;">' + (r.nav || 0).toFixed(2) + '</b></span>' +
+        '<span>PE <b style="color:#c0d0d8;">' + (r.pe || '--') + '</b></span>' +
+        '<span>PB <b style="color:#c0d0d8;">' + (r.pb || '--') + '</b></span>' +
+        '</div></div>' +
+
+        // Status
+        '<div style="display:flex;justify-content:space-between;font-size:11px;">' +
+        '<span>员工 <b style="color:#c0d0d8;">' + (r.employees || 0) + '人</b></span>' +
+        '<span>现金 <b style="color:#c0d0d8;">' + fmt(r.cash) + '</b></span>' +
+        '<span>资产 <b style="color:#c0d0d8;">' + fmt(r.assets) + '</b></span>' +
+        '<span>股价 <b style="color:#c0d0d8;">¥' + (r.share_price || 0).toFixed(2) + '</b></span>' +
         '</div>' +
 
-        // Row 2: Growth rates
-        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;">' +
-        '<span style="color:#8899a6;">营收增长</span>' + revGrowthStr +
-        '<span style="color:#8899a6;">利润增长</span>' + profitGrowthStr +
-        '<span style="color:#8899a6;">成本占比</span><span style="color:#c0d0d8;">' + costPct + '</span>' +
-        '</div>' +
-
-        // Row 3: Cost breakdown
-        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;padding:4px 0;border-top:1px solid #253545;">' +
-        '<span style="color:#8899a6;">薪资</span><span style="color:#c0d0d8;">' + fmt(r.salary_cost) + '</span>' +
-        '<span style="color:#8899a6;">研发</span><span style="color:#c0d0d8;">' + fmt(r.rd_spend) + '</span>' +
-        '<span style="color:#8899a6;">固定成本</span><span style="color:#c0d0d8;">' + fmt(r.fixed_cost) + '</span>' +
-        '<span style="color:#8899a6;">分红</span><span style="color:#c0d0d8;">' + fmt(r.dividend_paid) + '</span>' +
-        '</div>' +
-
-        // Row 4: Per-share metrics
-        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;padding:4px 0;border-top:1px solid #253545;">' +
-        '<span style="color:#8899a6;">EPS</span><span style="color:#c0d0d8;">' + (r.eps || 0).toFixed(2) + '</span>' +
-        '<span style="color:#8899a6;">NAV</span><span style="color:#c0d0d8;">' + (r.nav || 0).toFixed(2) + '</span>' +
-        '<span style="color:#8899a6;">PE</span><span style="color:#c0d0d8;">' + (r.pe || '--') + '</span>' +
-        '<span style="color:#8899a6;">PB</span><span style="color:#c0d0d8;">' + (r.pb || '--') + '</span>' +
-        '</div>' +
-
-        // Row 5: Status
-        '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-top:1px solid #253545;">' +
-        '<span style="color:#8899a6;">员工</span><span style="color:#c0d0d8;">' + (r.employees || 0) + '人</span>' +
-        '<span style="color:#8899a6;">现金</span><span style="color:#c0d0d8;">' + fmt(r.cash) + '</span>' +
-        '<span style="color:#8899a6;">资产</span><span style="color:#c0d0d8;">' + fmt(r.assets) + '</span>' +
-        '<span style="color:#8899a6;">股价</span><span style="color:#c0d0d8;">¥' + (r.share_price || 0).toFixed(2) + '</span>' +
-        '</div>' +
-
-        '</div>';
+        '</div></div>';
     });
     el.innerHTML = html;
   } catch (e) {

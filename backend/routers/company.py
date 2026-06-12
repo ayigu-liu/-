@@ -113,19 +113,32 @@ async def create_company(req: CompanyCreateRequest, user: User = Depends(_get_cu
 
     # Add stock to live market state
     state = get_global_state()
+    init_price = startup.get("price", 10)
+    init_shares = startup.get("shares", 10_000_000)
     state.stocks[symbol] = {
         "symbol": symbol,
         "name": req.name,
-        "price": 10.0,
+        "price": init_price,
         "volume": 0,
-        "shares_outstanding": 10_000_000,
+        "shares_outstanding": init_shares,
         "eps": 0.0,
-        "nav": 10.0,
+        "nav": init_price,
         "buy_volume": 0,
         "sell_volume": 0,
         "company_id": company.id,
         "is_company_stock": True,
     }
+
+    # Allocate shares to AI bots for market liquidity
+    ai_buy_hold = state.holdings.setdefault("ai_buy", {})
+    ai_sell_hold = state.holdings.setdefault("ai_sell", {})
+    ai_buy_hold[symbol] = {"qty": int(init_shares * 0.3), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
+    ai_sell_hold[symbol] = {"qty": int(init_shares * 0.3), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
+    # Also allocate to some institutional bots
+    for i in range(3):
+        pid = f"inst_{i+1}"
+        h = state.holdings.setdefault(pid, {})
+        h[symbol] = {"qty": int(init_shares * random.uniform(0.02, 0.08)), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
 
     return {"name": req.name, "symbol": symbol, "industry": req.industry}
 
@@ -419,6 +432,10 @@ async def company_financials(user: User = Depends(_get_current_user)):
             "fixed_cost": r.fixed_cost,
             "dividend_paid": r.dividend_paid,
             "industry_cycle": r.industry_cycle,
+            "cycle_mult": r.cycle_mult,
+            "base_revenue": r.base_revenue,
+            "interest_income": r.interest_income,
+            "market_condition": r.market_condition,
             "eps": round(r.profit / c.shares_outstanding, 4) if c.shares_outstanding > 0 else 0,
             "nav": round(r.assets / c.shares_outstanding, 2) if c.shares_outstanding > 0 else 0,
             "pe": round(r.share_price / max(r.profit / max(c.shares_outstanding, 1), 0.001), 2) if r.profit > 0 else 0,
@@ -428,3 +445,40 @@ async def company_financials(user: User = Depends(_get_current_user)):
         }
         for r in reports
     ]
+
+
+@router.get("/shareholders")
+async def company_shareholders(user: User = Depends(_get_current_user)):
+    """Get list of players holding this company's stock."""
+    async with async_session() as session:
+        r = await session.execute(select(Company).where(Company.player_id == user.id))
+        c = r.scalar_one_or_none()
+        if not c:
+            raise HTTPException(404, "no company")
+
+        from backend.models import Holding, User
+        rows = await session.execute(
+            select(Holding, User.nickname)
+            .outerjoin(User, Holding.player_id == User.id)
+            .where(Holding.symbol == c.symbol, Holding.qty > 0)
+            .order_by(desc(Holding.qty))
+        )
+        shareholders = []
+        total_held = 0
+        for h, nick in rows.all():
+            name = nick or h.player_id[:8]
+            shareholders.append({
+                "player_id": h.player_id,
+                "nickname": name,
+                "qty": h.qty,
+                "pct": round(h.qty / max(c.shares_outstanding, 1) * 100, 2),
+            })
+            total_held += h.qty
+
+        return {
+            "symbol": c.symbol,
+            "shares_outstanding": c.shares_outstanding,
+            "total_held": total_held,
+            "circulation_pct": round(total_held / max(c.shares_outstanding, 1) * 100, 2),
+            "shareholders": shareholders,
+        }

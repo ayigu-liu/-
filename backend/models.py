@@ -133,4 +133,8 @@ class CompanyQuarterly(Base):
     industry_cycle = Column(String(10), nullable=False, default="normal")
     prev_revenue = Column(Float, nullable=False, default=0.0)
     prev_profit = Column(Float, nullable=False, default=0.0)
+    cycle_mult = Column(Float, nullable=False, default=1.0)
+    base_revenue = Column(Float, nullable=False, default=0.0)
+    interest_income = Column(Float, nullable=False, default=0.0)
+    market_condition = Column(Float, nullable=False, default=0.0)
     created_at = Column(DateTime, default=lambda: datetime.utcnow())

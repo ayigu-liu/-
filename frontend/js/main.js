@@ -113,6 +113,12 @@ function handleWsMessage(msg) {
 
     case 'portfolio_update':
       updatePortfolio(msg.data);
+      // Refresh online count now that WS is connected
+      fetch(API_URL + '/api/market').then(function(r) { return r.json(); }).then(function(d) {
+        gameState.playersOnline = d.players_online || 0;
+        var pcEl = document.getElementById('player-count');
+        if (pcEl) pcEl.textContent = '👤 ' + (d.players_online || 0);
+      }).catch(function() {});
       break;
 
     case 'order_placed':

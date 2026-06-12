@@ -3478,6 +3478,7 @@ async def _process_quarterly(state, tick_count):
                 )
                 prev = prev_r.scalar_one_or_none()
 
+                base_rev = round(c.employees * base_rev_per_emp, 2)
                 q = CompanyQuarterly(
                     company_id=c.id,
                     quarter=q_num,
@@ -3495,6 +3496,10 @@ async def _process_quarterly(state, tick_count):
                     industry_cycle=cycle,
                     prev_revenue=prev.revenue if prev else 0,
                     prev_profit=prev.profit if prev else 0,
+                    cycle_mult=cycle_mult,
+                    base_revenue=base_rev,
+                    interest_income=round(interest_income, 2),
+                    market_condition=round(market_condition, 4),
                 )
                 session.add(q)
 
@@ -3516,6 +3521,9 @@ async def _update_industry_cycles(state, tick_count):
     """Transition industry cycles based on accumulated momentum."""
     for ind_id, cyc in state.industry_cycles.items():
         cyc["ticks_in_cycle"] = cyc.get("ticks_in_cycle", 0) + QUARTER_TICKS
+
+        # Natural momentum drift: each quarter randomly shifts ±0.3
+        cyc["momentum"] = cyc.get("momentum", 0.0) + random.uniform(-0.3, 0.3)
 
         # Every 4 quarters, transition
         if cyc["ticks_in_cycle"] >= QUARTER_TICKS * 4:

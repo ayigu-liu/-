@@ -191,6 +191,23 @@ async def market_industry():
     state = get_global_state()
     from backend.routers.company import INDUSTRY_NAMES as CN, INDUSTRY_DESCS as CD
 
+    # Query total revenue per industry from DB
+    ind_revenue: dict[str, float] = {ind: 0.0 for ind in INDUSTRY_NAMES}
+    try:
+        from backend.database import async_session
+        from backend.models import Company
+        from sqlalchemy import select, func
+        async with async_session() as sess:
+            for ind_id in INDUSTRY_NAMES:
+                r = await sess.execute(
+                    select(func.sum(Company.revenue)).where(Company.industry == ind_id)
+                )
+                total = r.scalar_one_or_none()
+                if total:
+                    ind_revenue[ind_id] = round(total, 2)
+    except Exception:
+        pass
+
     # Group stocks by industry company stocks
     industry_companies: dict[str, list] = {ind: [] for ind in INDUSTRY_NAMES}
 
@@ -235,6 +252,7 @@ async def market_industry():
             "cycle_name": cycle_info.get("cycle_name", "正常"),
             "cycle_desc": cycle_info.get("cycle_desc", "行业运行平稳"),
             "total_market_cap": total_mcap,
+            "total_revenue": ind_revenue.get(ind_id, 0),
             "companies": companies,
         })
 
