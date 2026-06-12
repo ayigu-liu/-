@@ -533,18 +533,6 @@ function showAllocAdjustModal() {
   }
 
   updateDisplays();
-    var total = 0;
-    keys.forEach(function(k) {
-      sliders[k].value = pendingAlloc[k];
-      valueDisplays[k].textContent = pendingAlloc[k] + '%';
-      total += pendingAlloc[k];
-    });
-    var td = document.getElementById('alloc-total');
-    if (td) {
-      td.textContent = '合计: ' + total + '%';
-      td.style.color = (total !== 100) ? '#ef4444' : 'var(--text-muted)';
-    }
-  }
 
   var btnRow = document.createElement('div');
   btnRow.style.cssText = 'display:flex;justify-content:center;gap:8px;margin-top:16px;';
