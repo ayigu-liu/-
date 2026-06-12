@@ -2794,52 +2794,11 @@ async def execute_trade(player_id: str, data: dict):
         },
     })
 
-    # Send portfolio_update to player
-    cash = player["cash"]
-    holdings_list = []
-    total_assets = cash
-    for sym, h in state.holdings.get(player_id, {}).items():
-        sp = state.stocks.get(sym, {})
-        cur_price = sp.get("price", 0)
-        mv = round(h["qty"] * cur_price, 2)
-        pnl = round(mv - h["qty"] * h["avg_cost"], 2) if h["qty"] > 0 else 0
-        short_mv = round(h.get("short_qty", 0) * cur_price, 2)
-        short_pnl = round((h.get("short_avg_cost", 0) - cur_price) * h.get("short_qty", 0), 2) if h.get("short_qty", 0) > 0 else 0
-
-        holdings_list.append({
-            "symbol": sym,
-            "name": sp.get("name", sym),
-            "quantity": h["qty"],
-            "avg_cost": h["avg_cost"],
-            "current_price": cur_price,
-            "market_value": mv,
-            "pnl": pnl,
-            "frozen_qty": h.get("frozen_qty", 0),
-            "short_qty": h.get("short_qty", 0),
-            "short_avg_cost": h.get("short_avg_cost", 0),
-            "short_market_value": short_mv,
-            "short_pnl": short_pnl,
-        })
-        total_assets += mv
-        total_assets -= short_mv  # short liability
-    total_assets -= player.get("margin_debt", 0)  # margin debt
-
-    total_pnl = round(total_assets - STARTING_CASH, 2)
-    pnl_pct = round((total_pnl / STARTING_CASH) * 100, 2)
-
+    # Send portfolio_update to player using shared function
+    pf = calc_player_portfolio(state, player_id, player, state.holdings.get(player_id, {}))
     await manager.send_to(GLOBAL_ROOM_ID, player_id, {
         "type": "portfolio_update",
-        "data": {
-            "cash": round(cash, 2),
-            "holdings": holdings_list,
-            "total_assets": round(total_assets, 2),
-            "total_pnl": total_pnl,
-            "pnl_percent": pnl_pct,
-            "frozen_cash": player.get("frozen_cash", 0),
-            "margin_debt": player.get("margin_debt", 0),
-            "buying_power": round((cash - player.get("frozen_cash", 0)) * 2.0, 2),
-            "day_start_assets": state.day_start_assets.get(player_id, total_assets),
-        },
+        "data": pf,
     })
 
 
