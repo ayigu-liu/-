@@ -57,10 +57,6 @@ async function showGamePage() {
   var sel = document.getElementById("trade-stock-select");
   if (sel) sel.value = gameState.selectedStock || '';
   renderNews();
-  loadMyOrders();
-  if (!window.ordersInterval) {
-    window.ordersInterval = setInterval(loadMyOrders, 3000);
-  }
   checkCompanyOnLogin();
 
   leaderboardInterval = setInterval(loadLeaderboard, 1000);
@@ -594,61 +590,6 @@ function renderLeaderboard() {
 // ============================================================
 // 我的委托（撤单）
 // ============================================================
-async function loadMyOrders() {
-  if (!gameState.playerId) return;
-  try {
-    const orders = await apiGet('/api/market/orders?player_id=' + gameState.playerId);
-    gameState.pendingOrders = orders || [];
-    renderPendingOrders();
-  } catch (e) {
-    console.error('loadOrders error', e);
-  }
-}
-
-function renderPendingOrders() {
-  const el = document.getElementById('pending-orders-content');
-  if (!el) return;
-  const orders = gameState.pendingOrders || [];
-  if (orders.length === 0) {
-    el.innerHTML = '<div class="pending-orders-empty">暂无委托</div>';
-    return;
-  }
-  el.innerHTML = orders.map(o => {
-    const label = o.type === 'buy' ? '买入' : '卖出';
-    const cls = o.type === 'buy' ? 'price-up' : 'price-down';
-    return `<div class="pending-order-row">
-      <div class="po-info">
-        <span class="po-type ${cls}">${label}</span>
-        <span class="po-symbol">${o.symbol}</span>
-        <span class="po-price">¥${o.price.toFixed(2)}</span>
-        <span class="po-qty">${o.filled}/${o.quantity}</span>
-      </div>
-      <button class="btn btn-xs btn-danger" onclick="handleCancelOrder('${o.order_id}')">撤单</button>
-    </div>`;
-  }).join('');
-}
-
-async function handleCancelOrder(orderId) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    showToast('未连接', 'error');
-    return;
-  }
-  wsSend('cancel_order', { order_id: orderId });
-}
-
-function handleCancelAllOrders() {
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    showToast('未连接', 'error');
-    return;
-  }
-  const orders = gameState.pendingOrders || [];
-  if (orders.length === 0) {
-    showToast('没有需要撤销的委托', 'info');
-    return;
-  }
-  wsSend('cancel_all_orders', {});
-  showToast('正在撤销全部委托...', 'info');
-}
 
 function refreshHoldings() {
   if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -802,8 +743,6 @@ function setAdminStatus(msg) {
   }
 }
 
-// Auto-refresh pending orders (starts in showGamePage)
-window.ordersInterval = null;
 
 // ============================================================
 // Floating Trading Panel
