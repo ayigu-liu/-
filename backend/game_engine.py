@@ -850,16 +850,15 @@ async def price_tick_loop():
             state.last_news_time = now
             await generate_news()
 
-        # --- Update daily stats (reset every 200 ticks = 5 min = 1 game day) ---
-        if tick_count % 200 == 0 and tick_count > 0:
-            ref_stock = next(iter(state.stocks.values()), {})
-            ref_price = ref_stock.get("price", 0)
+        # --- Update daily stats ---
+        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        if today_str != state.last_reset_date:
             if state.last_reset_date:
-                state.prev_close = ref_price
-            state.last_reset_date = str(tick_count // 200)
-            state.day_open = ref_price
-            state.day_high = ref_price
-            state.day_low = ref_price
+                state.prev_close = state.stocks["DM"]["price"]
+            state.last_reset_date = today_str
+            state.day_open = state.stocks["DM"]["price"]
+            state.day_high = state.stocks["DM"]["price"]
+            state.day_low = state.stocks["DM"]["price"]
             # Recalculate day_start_assets for all human players
             state.day_start_assets.clear()
             for pid, pdata in list(state.players.items()):
