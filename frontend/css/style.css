@@ -285,13 +285,21 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; }
 }
 @media (max-width: 800px) {
   .game-grid { grid-template-columns: 1fr; height: auto; }
-  .game-header { flex-wrap: wrap; gap: 8px; padding: 10px; }
+  .game-header { flex-wrap: wrap; gap: 6px; padding: 8px; font-size: 12px; }
   .header-center { order: -1; width: 100%; text-align: center; }
+  .header-left .room-code { font-size: 15px; }
+  .header-right { gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .header-right .btn { font-size: 13px !important; padding: 1px 5px !important; }
+  .stock-price-header { font-size: 16px; }
   .pf-detail-grid { grid-template-columns: 1fr 1fr; gap: 4px; padding: 6px 2px; }
   .pf-hero-value { font-size: 16px; }
   .holding-row { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; font-size: 12px; }
   .holding-row span:nth-child(3), .holding-row span:nth-child(4), .holding-row span:nth-child(7) { display: none; }
   .panel-right { display: flex; }
+  .ftp { width: 95vw; right: 2.5vw; top: 55px; max-height: calc(100vh - 65px); font-size: 12px; }
+  .ftp-body { max-height: calc(100vh - 120px); }
+  .conn-status { font-size: 10px; padding: 1px 5px; }
+  .user-email { display: none; }
 }
 
 @media (max-width: 400px) {
@@ -300,7 +308,7 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; }
 
 /* Mobile responsive floating panels */
 @media (max-width: 800px) {
-  .ftp { width: 90vw; right: 5vw; left: auto; top: 60px; max-height: calc(100vh - 70px); }
+  .ftp { width: 95vw; right: 2.5vw; left: auto; top: 55px; max-height: calc(100vh - 65px); font-size: 12px; }
   #floating-margin-panel { right: 5vw; left: auto; }
   #floating-margin-panel.minimized { right: 5vw; }
   #floating-chat-panel { right: 5vw; left: auto; width: 90vw; }

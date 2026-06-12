@@ -12,47 +12,15 @@ from backend.schemas import (
     CompanyCreateRequest, CompanyResponse, CompanyRankingEntry,
     CashActionRequest, DecisionRequest, AllocRequest, AnnounceRequest,
 )
-from backend.game_engine import get_global_state, GLOBAL_ROOM_ID
+from backend.game_engine import get_global_state, GLOBAL_ROOM_ID, mark_dirty
+from backend.industry_config import INDUSTRY_NAMES, INDUSTRY_DESCS, INDUSTRY_BASE_PE, INDUSTRY_STARTUP, INDUSTRY_BENCHMARKS
 from backend.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/company", tags=["company"])
 
-INDUSTRY_NAMES = {
-    "tech": "科技", "finance": "金融", "manufacturing": "制造业",
-    "energy": "能源", "consumer": "消费", "healthcare": "医药",
-}
-INDUSTRY_DESCS = {
-    "tech": "高增长、高波动",
-    "finance": "稳定增长、低波动",
-    "manufacturing": "稳定收益、周期性强",
-    "energy": "强周期性、政策敏感",
-    "consumer": "防御性、稳定现金流",
-    "healthcare": "防御性、高利润",
-}
-INDUSTRY_BASE_PE = {
-    "tech": 20, "finance": 12, "manufacturing": 10,
-    "energy": 8, "consumer": 15, "healthcare": 18,
-}
-# Industry-specific startup configs
-INDUSTRY_STARTUP = {
-    "tech":        {"cash": 50000, "assets": 50000, "employees": 8,  "price": 5, "shares": 2_000_000,  "desc": "轻资产高估值，研发驱动"},
-    "finance":     {"cash": 100000, "assets": 150000, "employees": 12, "price": 4, "shares": 3_000_000, "desc": "资金密集型，监管严格"},
-    "manufacturing":{"cash": 80000, "assets": 120000, "employees": 20, "price": 3,  "shares": 5_000_000, "desc": "重资产劳动密集，规模效应"},
-    "energy":      {"cash": 120000, "assets": 200000, "employees": 15, "price": 5, "shares": 4_000_000, "desc": "资源依赖，政策敏感"},
-    "consumer":    {"cash": 40000, "assets": 50000, "employees": 10, "price": 3,  "shares": 3_000_000, "desc": "现金流稳定，防御性强"},
-    "healthcare":  {"cash": 100000, "assets": 80000, "employees": 10, "price": 6, "shares": 2_000_000,  "desc": "高毛利，研发投入大"},
-}
-# Quarterly simulation benchmarks
-INDUSTRY_BENCHMARKS = {
-    "tech":        {"rev_per_emp": 3200, "cost_per_emp": 1800, "trend": 1.08, "desc": "人均产出高，薪资高"},
-    "finance":     {"rev_per_emp": 2800, "cost_per_emp": 1600, "trend": 1.04, "desc": "人均中等偏高，运营成本高"},
-    "manufacturing":{"rev_per_emp": 1800, "cost_per_emp": 1400, "trend": 1.03, "desc": "人均产出低，劳动密集"},
-    "energy":      {"rev_per_emp": 2500, "cost_per_emp": 1800, "trend": 1.02, "desc": "人均资源产出高，设备成本高"},
-    "consumer":    {"rev_per_emp": 1600, "cost_per_emp": 1000, "trend": 1.05, "desc": "薄利多销，成本控制好"},
-    "healthcare":  {"rev_per_emp": 3000, "cost_per_emp": 1400, "trend": 1.06, "desc": "高附加值，高毛利"},
-}
+
 
 # Symbol counters per industry
 _symbol_counters: dict[str, int] = {}
@@ -73,8 +41,8 @@ def _generate_symbol(industry: str) -> str:
     global _symbol_counters
     _symbol_counters.setdefault(industry, 0)
     _symbol_counters[industry] += 1
-    prefix = {"tech": "TK", "finance": "FI", "manufacturing": "MF",
-              "energy": "EN", "consumer": "CS", "healthcare": "YL"}.get(industry, "CP")
+    from backend.industry_config import SYMBOL_PREFIXES
+    prefix = SYMBOL_PREFIXES.get(industry, "CP")
     return f"{prefix}{_symbol_counters[industry]:03d}"
 
 
@@ -129,16 +97,21 @@ async def create_company(req: CompanyCreateRequest, user: User = Depends(_get_cu
         "is_company_stock": True,
     }
 
-    # Allocate shares to AI bots for market liquidity
+    # Allocate shares: creator holds 40%, AI bots 30%, bots 30%
+    creator_hold = state.holdings.setdefault(user.id, {})
+    creator_hold[symbol] = {"qty": int(init_shares * 0.4), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
     ai_buy_hold = state.holdings.setdefault("ai_buy", {})
     ai_sell_hold = state.holdings.setdefault("ai_sell", {})
-    ai_buy_hold[symbol] = {"qty": int(init_shares * 0.3), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
-    ai_sell_hold[symbol] = {"qty": int(init_shares * 0.3), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
+    ai_buy_hold[symbol] = {"qty": int(init_shares * 0.15), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
+    ai_sell_hold[symbol] = {"qty": int(init_shares * 0.15), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
     # Also allocate to some institutional bots
     for i in range(3):
         pid = f"inst_{i+1}"
         h = state.holdings.setdefault(pid, {})
-        h[symbol] = {"qty": int(init_shares * random.uniform(0.02, 0.08)), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
+        h[symbol] = {"qty": int(init_shares * random.uniform(0.02, 0.06)), "avg_cost": init_price, "frozen_qty": 0, "short_qty": 0, "short_avg_cost": 0.0}
+
+    # Persist creator holdings to DB
+    mark_dirty(user.id)
 
     return {"name": req.name, "symbol": symbol, "industry": req.industry}
 
@@ -305,6 +278,20 @@ async def cash_action(req: CashActionRequest, user: User = Depends(_get_current_
             c.cash -= severance
             c.employees -= qty
             msg = f"裁员 {qty} 人，支付遣散费 ¥{severance:,.0f}，每季度节省 ¥{qty * 800:,.0f}"
+
+        elif action == "capital_inject":
+            # Player injects personal cash into company
+            pid = user.id
+            pdata = state.players.get(pid)
+            if not pdata:
+                raise HTTPException(400, "玩家数据不存在")
+            available = pdata.get("cash", 0) - pdata.get("frozen_cash", 0)
+            if amount > available:
+                raise HTTPException(400, f"可用资金不足，当前可用 ¥{available:,.0f}")
+            pdata["cash"] = round(pdata["cash"] - amount, 2)
+            c.cash = round(c.cash + amount, 2)
+            mark_dirty(pid)
+            msg = f"注资 ¥{amount:,.0f} 成功！公司现金 +¥{amount:,.0f}"
 
         elif action == "marketing":
             c.cash -= amount

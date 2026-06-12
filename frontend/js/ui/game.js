@@ -474,72 +474,72 @@ function showAllocAdjustModal() {
   div.innerHTML = '<div class="decision-title">利润分配</div>' +
     '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">调整各项分配比例，合计必须为100%</div>';
 
-  var fields = [
-    {key: 'reserve', label: '储存', desc: '加入公司现金储备'},
-    {key: 'sales', label: '销售', desc: '扩展市场份额'},
-    {key: 'dividend', label: '分红', desc: '分给股东'},
-    {key: 'research', label: '研究', desc: '提升未来增长'},
-  ];
+  var adjustable = ['sales', 'dividend', 'research'];
   var sliders = {};
   var valueDisplays = {};
 
-  fields.forEach(function(f) {
+  adjustable.forEach(function(key) {
+    var labels = {sales: '销售', dividend: '分红', research: '研究'};
+    var descs = {sales: '扩展市场份额', dividend: '分给股东', research: '提升未来增长'};
     var row = document.createElement('div');
     row.className = 'alloc-row';
     row.innerHTML = '<div class="alloc-header">' +
-      '<span class="alloc-label">' + f.label + '</span>' +
-      '<span class="alloc-desc">' + (f.desc || '') + '</span>' +
+      '<span class="alloc-label">' + labels[key] + '</span>' +
+      '<span class="alloc-desc">' + descs[key] + '</span>' +
       '</div>' +
       '<div class="alloc-control">' +
-      '<input type="range" class="alloc-slider" min="0" max="100" value="' + pendingAlloc[f.key] + '">' +
-      '<span class="alloc-value">' + pendingAlloc[f.key] + '%</span>' +
+      '<input type="range" class="alloc-slider" min="0" max="100" value="' + pendingAlloc[key] + '">' +
+      '<span class="alloc-value">' + pendingAlloc[key] + '%</span>' +
       '</div>';
     div.appendChild(row);
-    sliders[f.key] = row.querySelector('.alloc-slider');
-    valueDisplays[f.key] = row.querySelector('.alloc-value');
-    sliders[f.key].addEventListener('input', (function(key) {
+    sliders[key] = row.querySelector('.alloc-slider');
+    valueDisplays[key] = row.querySelector('.alloc-value');
+    sliders[key].addEventListener('input', (function(k) {
       return function() {
-        updateAllocPct(key, parseInt(this.value) || 0);
+        var v = parseInt(this.value) || 0;
+        pendingAlloc[k] = Math.max(0, Math.min(100, v));
+        updateDisplays();
       };
-    })(f.key));
+    })(key));
   });
 
-  function updateAllocPct(changedKey, newVal) {
-    newVal = Math.max(0, Math.min(100, newVal));
-    var keys = Object.keys(pendingAlloc);
-    var otherKeys = keys.filter(function(k) { return k !== changedKey; });
-    var currentTotal = 0;
-    otherKeys.forEach(function(k) { currentTotal += pendingAlloc[k]; });
-    var remaining = 100 - newVal;
-    if (remaining < 0) {
-      newVal = 100;
-      remaining = 0;
-      otherKeys.forEach(function(k) { pendingAlloc[k] = 0; });
-    } else if (currentTotal > 0) {
-      var ratio = remaining / currentTotal;
-      var allocated = 0;
-      otherKeys.forEach(function(k, i) {
-        var v = Math.round(pendingAlloc[k] * ratio);
-        if (i === otherKeys.length - 1) {
-          v = remaining - allocated;
+  // Auto-calculated reserve display
+  var reserveRow = document.createElement('div');
+  reserveRow.className = 'alloc-row';
+  reserveRow.style.opacity = '0.7';
+  reserveRow.innerHTML = '<div class="alloc-header">' +
+    '<span class="alloc-label">储存</span>' +
+    '<span class="alloc-desc">自动 = 100% - 其他三项</span>' +
+    '</div>' +
+    '<div class="alloc-control">' +
+    '<span class="alloc-value" id="reserve-auto-val">' + pendingAlloc.reserve + '%</span>' +
+    '</div>';
+  div.appendChild(reserveRow);
+
         } else {
-          allocated += v;
         }
-        pendingAlloc[k] = Math.max(0, Math.min(100, v));
       });
     } else {
-      var equalShare = Math.floor(remaining / otherKeys.length);
-      otherKeys.forEach(function(k) { pendingAlloc[k] = equalShare; });
-      var sum = newVal;
-      otherKeys.forEach(function(k) { sum += pendingAlloc[k]; });
-      if (sum < 100) pendingAlloc[otherKeys[otherKeys.length - 1]] += 100 - sum;
     }
-    pendingAlloc[changedKey] = newVal;
-    updateDisplays();
   }
 
   function updateDisplays() {
-    var keys = Object.keys(pendingAlloc);
+    var sum = (pendingAlloc.sales || 0) + (pendingAlloc.dividend || 0) + (pendingAlloc.research || 0);
+    pendingAlloc.reserve = Math.max(0, 100 - sum);
+    adjustable.forEach(function(k) {
+      sliders[k].value = pendingAlloc[k];
+      valueDisplays[k].textContent = pendingAlloc[k] + '%';
+    });
+    var re = document.getElementById('reserve-auto-val');
+    if (re) re.textContent = pendingAlloc.reserve + '%';
+    var td = document.getElementById('alloc-total');
+    if (td) {
+      td.textContent = '合计: 100%（其中储存 ' + pendingAlloc.reserve + '%）';
+      td.style.color = 'var(--text-muted)';
+    }
+  }
+
+  updateDisplays();
     var total = 0;
     keys.forEach(function(k) {
       sliders[k].value = pendingAlloc[k];
@@ -1099,7 +1099,7 @@ function renderComprank(data) {
     '<span class="cr-d">股息率</span>' +
   '</div>';
   data.forEach(function(r) {
-    var mcapStr = r.market_cap >= 100000000 ? (r.market_cap / 100000000).toFixed(2) + '亿' : Math.floor(r.market_cap / 10000) + '万';
+    var revStr = r.market_cap >= 100000000 ? (r.market_cap / 100000000).toFixed(2) + '亿' : Math.floor(r.market_cap / 10000) + '万';
     var revStr = r.revenue >= 100000000 ? (r.revenue / 100000000).toFixed(2) + '亿' : (r.revenue >= 10000 ? Math.floor(r.revenue / 10000) + '万' : (r.revenue || 0));
     var profitStr = r.profit >= 100000000 ? (r.profit / 100000000).toFixed(2) + '亿' : (r.profit >= 10000 ? Math.floor(r.profit / 10000) + '万' : (r.profit || 0));
     profitStr = '<span class="' + (r.profit >= 0 ? 'cr-up' : 'cr-down') + '">' + profitStr + '</span>';
@@ -1108,7 +1108,7 @@ function renderComprank(data) {
       '<span class="cr-r' + (r.rank <= 3 ? ' top' + r.rank : '') + '">' + r.rank + '</span>' +
       '<span class="cr-n"><span class="cr-sym">' + r.symbol + '</span><span class="cr-name-text">' + r.name + '</span></span>' +
       '<span class="cr-i">' + (r.industry_name || '--') + '</span>' +
-      '<span class="cr-m">' + mcapStr + '</span>' +
+      '<span class="cr-m">' + revStr + '</span>' +
       '<span class="cr-rv">' + revStr + '</span>' +
       '<span class="cr-p">' + profitStr + '</span>' +
       '<span class="cr-d">' + divStr + '</span>' +
@@ -1205,16 +1205,16 @@ async function loadIndustryMarket() {
 
       if (ind.companies && ind.companies.length > 0) {
         ind.companies.forEach(function(c) {
-          var mcapStr = c.market_cap >= 100000000 ? (c.market_cap / 100000000).toFixed(2) + '亿' : (c.market_cap >= 10000 ? (c.market_cap / 10000).toFixed(2) + '万' : '¥' + (c.market_cap || 0));
+          var revStr = c.revenue >= 100000000 ? (c.market_cap / 100000000).toFixed(2) + '亿' : (c.market_cap >= 10000 ? (c.market_cap / 10000).toFixed(2) + '万' : '¥' + (c.market_cap || 0));
           var shareWidth = Math.min(100, Math.max(2, c.market_share || 0));
           var shareColor = c.market_share >= 50 ? '#22c55e' : (c.market_share >= 20 ? '#3b82f6' : '#8899a6');
           html += '<div style="display:flex;align-items:center;padding:4px 0;font-size:11px;cursor:pointer;" onclick="selectStock(\'' + c.symbol + '\');closeIndustryPanel();">' +
-            '<span style="width:80px;color:#c0d0d8;font-weight:600;">' + c.symbol + '</span>' +
+            '<span style="width:70px;color:#c0d0d8;font-weight:600;">' + c.symbol + '</span>' +
             '<span style="flex:1;color:#8899a6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (c.name || '') + '</span>' +
             '<div style="width:80px;height:6px;background:#253545;border-radius:3px;margin:0 8px;overflow:hidden;">' +
             '<div style="height:100%;width:' + shareWidth + '%;background:' + shareColor + ';border-radius:3px;"></div></div>' +
             '<span style="width:50px;text-align:right;color:' + shareColor + ';font-weight:600;">' + (c.market_share || 0) + '%</span>' +
-            '<span style="width:80px;text-align:right;color:#c0d0d8;margin-left:4px;">' + mcapStr + '</span>' +
+            '<span style="width:80px;text-align:right;color:#c0d0d8;margin-left:4px;">' + revStr + '</span>' +
             '</div>';
         });
       } else {
@@ -1381,6 +1381,7 @@ function showCashActionModal() {
     {type: 'special_dividend', icon: '💰', name: '特别分红', min_cost: 20000, desc: '向所有股东派发现金分红', effect: '股东按持股比例获得现金'},
     {type: 'hiring', icon: '👥', name: '扩产招人', min_cost: 10000, desc: '招聘新员工提升产能', effect: '永久提升每季度营收'},
     {type: 'layoff', icon: '🚪', name: '裁员', min_cost: 0, desc: '裁减员工降低成本', effect: '减少工资支出，但降低产能'},
+    {type: 'capital_inject', icon: '💵', name: '注资', min_cost: 10000, desc: '用自己的现金向公司注资', effect: '增加公司现金储备'},
     {type: 'marketing', icon: '📢', name: '市场突袭', min_cost: 30000, desc: '大规模营销推广', effect: '下季度营收大幅增长'},
     {type: 'media_pr', icon: '📰', name: '媒体公关', min_cost: 50000, desc: '提升公司品牌形象', effect: '短期拉高PE估值倍数'},
     {type: 'acquisition', icon: '🤝', name: '跨业并购', min_cost: 200000, desc: '收购小型企业', effect: '直接增加总资产和员工'},

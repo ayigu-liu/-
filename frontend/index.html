@@ -124,20 +124,9 @@
           <div class="kline-container">
             <canvas id="kline-canvas" width="400" height="360"></canvas>
             <div class="kline-axis-x" id="kline-time">--:--</div>
-            <div class="indicator-selector">
-              <button class="indicator-btn active" data-indicator="MACD" onclick="setIndicator('MACD')">MACD</button>
-              <button class="indicator-btn" data-indicator="KDJ" onclick="setIndicator('KDJ')">KDJ</button>
-              <button class="indicator-btn" data-indicator="RSI" onclick="setIndicator('RSI')">RSI</button>
-              <button class="indicator-btn" data-indicator="BOLL" onclick="setIndicator('BOLL')">BOLL</button>
-            </div>
             <div class="kline-period-selector">
               <button class="kline-period-btn active" data-period="chart" onclick="switchKlinePeriod('chart')">分时</button>
               <button class="kline-period-btn" data-period="kline-4t" onclick="switchKlinePeriod('kline-4t')">K线</button>
-              <button class="kline-period-btn" data-period="kline-1t" onclick="switchKlinePeriod('kline-1t')">Tick</button>
-              <button class="kline-period-btn" data-period="kline-20t" onclick="switchKlinePeriod('kline-20t')">1分</button>
-              <button class="kline-period-btn" data-period="kline-1d" onclick="switchKlinePeriod('kline-1d')">日K</button>
-              <button class="kline-period-btn" data-period="kline-1w" onclick="switchKlinePeriod('kline-1w')">周K</button>
-              <button class="kline-period-btn" data-period="kline-1m" onclick="switchKlinePeriod('kline-1m')">月K</button>
             </div>
           </div>
         </div>

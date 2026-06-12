@@ -10,20 +10,8 @@ from backend.models import User, Transaction
 from backend.schemas import MarketInfo, LeaderboardEntry
 from backend.websocket_manager import manager
 from backend.config import SHARES_OUTSTANDING
+from backend.industry_config import INDUSTRY_NAMES, INDUSTRY_DESCS
 from pydantic import BaseModel, Field
-
-INDUSTRY_NAMES = {
-    "tech": "科技", "finance": "金融", "manufacturing": "制造业",
-    "energy": "能源", "consumer": "消费", "healthcare": "医药",
-}
-INDUSTRY_DESCS = {
-    "tech": "高增长、高波动",
-    "finance": "稳定增长、低波动",
-    "manufacturing": "稳定收益、周期性强",
-    "energy": "强周期性、政策敏感",
-    "consumer": "防御性、稳定现金流",
-    "healthcare": "防御性、高利润",
-}
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 
@@ -224,13 +212,17 @@ async def market_industry():
                     c = r.scalar_one_or_none()
                     if c:
                         ind = c.industry
+                        company_rev = c.revenue
+                    else:
+                        company_rev = 0
             except Exception:
-                pass
+                company_rev = 0
             mcap = sd.get("price", 0) * sd.get("shares_outstanding", 1)
             industry_companies.setdefault(ind, []).append({
                 "symbol": sym,
                 "name": sd.get("name", sym),
                 "price": sd.get("price", 0),
+                "revenue": company_rev,
                 "pe": sd.get("eps", 0) / max(sd.get("price", 1), 0.01) if sd.get("eps", 0) > 0 else 0,
                 "market_cap": mcap,
             })

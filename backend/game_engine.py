@@ -1046,6 +1046,12 @@ async def ai_trading_loop():
                 await _ai_sell_tick(state)
             except Exception as e:
                 logger.error(f"AI sell error: {e}")
+        # AI market-making trades: create visible tape activity
+        if tick_count % 24 == 0:
+            try:
+                await _ai_market_trade(state)
+            except Exception as e:
+                logger.error(f"AI market trade error: {e}")
 
 
 async def _ai_clear_pending(player_id: str, order_type: str):
@@ -1204,6 +1210,24 @@ async def _ai_sell_tick(state):
             await execute_trade(pid, {
                 "stock_symbol": "DM", "quantity": buy_qty, "trade_type": "buy",
             })
+
+
+async def _ai_market_trade(state):
+    """AI market-making: execute small trades to create visible tape activity."""
+    for sym, sd in list(state.stocks.items()):
+        if not sd.get("is_company_stock"):
+            continue
+        if not sd.get("price") or sd["price"] <= 0:
+            continue
+        # Small random trade: 500-2000 shares
+        qty = random.randint(500, 2000)
+        price = sd["price"]
+        # ai_buy buys, ai_sell sells (or vice versa randomly)
+        if random.random() < 0.5:
+            await execute_trade("ai_buy", {"stock_symbol": sym, "quantity": qty, "trade_type": "buy"})
+        else:
+            await execute_trade("ai_sell", {"stock_symbol": sym, "quantity": qty, "trade_type": "sell"})
+        break  # one trade per tick
 
 
 # ============================================================
@@ -3324,15 +3348,9 @@ async def _process_quarterly(state, tick_count):
             period_labels = {1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4"}
             period_str = f"{year}年{period_labels.get(q_num, f'Q{q_num}')}"
 
-            # Industry benchmarks — must match company.py INDUSTRY_BENCHMARKS
-            industry_benchmarks = {
-                "tech":        {"rev": 3200, "cost": 1800, "trend": 1.08},
-                "finance":     {"rev": 2800, "cost": 1600, "trend": 1.04},
-                "manufacturing": {"rev": 1800, "cost": 1400, "trend": 1.03},
-                "energy":      {"rev": 2500, "cost": 1800, "trend": 1.02},
-                "consumer":    {"rev": 1600, "cost": 1000, "trend": 1.05},
-                "healthcare":  {"rev": 3000, "cost": 1400, "trend": 1.06},
-            }
+            # Industry benchmarks from industry_config
+            from backend.industry_config import INDUSTRY_BENCHMARKS
+            industry_benchmarks = INDUSTRY_BENCHMARKS
 
             # Global market condition this quarter (-20% ~ +20%)
             market_condition = random.uniform(-0.15, 0.20)
