@@ -516,13 +516,6 @@ function showAllocAdjustModal() {
     '</div>';
   div.appendChild(reserveRow);
 
-        } else {
-        }
-      });
-    } else {
-    }
-  }
-
   function updateDisplays() {
     var sum = (pendingAlloc.sales || 0) + (pendingAlloc.dividend || 0) + (pendingAlloc.research || 0);
     pendingAlloc.reserve = Math.max(0, 100 - sum);
