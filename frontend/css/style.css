@@ -2493,7 +2493,7 @@ button:active {
 .cr-down { color: #ef4444; }
 
 /* Hide floating panels when login page is active */
-#auth-page.active ~ .ftp {
+body:has(#auth-page.active) .ftp {
     display: none !important;
 }
 

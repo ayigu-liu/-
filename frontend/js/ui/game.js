@@ -1599,7 +1599,6 @@ function selectCashAction(type, name, minCost) {
     selectedMinCost = 500000;
     window._pivotTarget = null;
   } else {
-  } else {
     detail.innerHTML = '<div class="cash-detail-box">' +
       '<div class="cash-detail-title">' + name + '</div>' +
       '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">最低消费 ¥' + Number(minCost).toLocaleString() + '</div>' +
