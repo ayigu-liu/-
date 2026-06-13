@@ -30,6 +30,7 @@ async def company_tick_loop():
         state._company_tick_counter = tick_count
         await _update_company_stock_prices(state)
         if tick_count % QUARTER_TICKS == 0 and tick_count > 0:
+            logger.info("Quarter boundary reached: tick %d, processing...", tick_count)
             await _process_quarterly(state, tick_count)
 
 
