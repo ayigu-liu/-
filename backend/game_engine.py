@@ -2538,11 +2538,29 @@ async def execute_trade(player_id: str, data: dict):
         # 订单簿撮合：扫卖单
         result = await _sweep_sell_orders(state, player_id, symbol, qty, available_cash * 2.0)
         if result is None:
-            await manager.send_to(GLOBAL_ROOM_ID, player_id, {
-                "type": "trade_rejected",
-                "data": {"reason": "没有足够的卖单，暂时无法成交", "stock_symbol": symbol},
-            })
-            return
+            # 无挂单时从 ai_sell 库存按市价卖出（做市商）
+            ai_hold = state.holdings.get("ai_sell", {}).get(symbol, {})
+            mm_qty = min(qty, ai_hold.get("qty", 0) - ai_hold.get("frozen_qty", 0))
+            if mm_qty > 0:
+                mm_price = stock.get("price", 1)
+                mm_cost = round(mm_qty * mm_price, 2)
+                mm_comm = round(max(mm_cost * COMMISSION_RATE, MIN_COMMISSION), 2)
+                ai_hold["qty"] -= mm_qty
+                ai_hold["avg_cost"] = ai_hold.get("avg_cost", mm_price)
+                stock["price"] = round(max(PRICE_MIN, min(PRICE_MAX, mm_price * 1.001)), 2)
+                stock["volume"] = stock.get("volume", 0) + mm_qty
+                stock["buy_volume"] = stock.get("buy_volume", 0) + mm_qty
+                result = {"filled_qty": mm_qty, "avg_price": mm_price, "last_price": mm_price,
+                          "total_cost": mm_cost, "commission": mm_comm, "fills": []}
+                state.trade_tape.insert(0, {"time": datetime.utcnow().strftime("%H:%M:%S"), "price": mm_price, "quantity": mm_qty, "type": "buy", "side": "active_buy"})
+                if len(state.trade_tape) > 100:
+                    state.trade_tape = state.trade_tape[:100]
+            else:
+                await manager.send_to(GLOBAL_ROOM_ID, player_id, {
+                    "type": "trade_rejected",
+                    "data": {"reason": "没有足够的卖单，暂时无法成交", "stock_symbol": symbol},
+                })
+                return
 
         filled = result["filled_qty"]
         total_required = round(result["total_cost"] + result["commission"], 2)
