@@ -26,12 +26,12 @@ INDUSTRY_STARTUP = {
     "healthcare":  {"cash": 100000, "assets": 80000, "employees": 10, "price": 6, "shares": 2_000_000,  "desc": "高毛利，研发投入大"},
 }
 INDUSTRY_BENCHMARKS = {
-    "tech":        {"rev": 3200, "cost": 1800, "trend": 1.08, "desc": "人均产出高，薪资高"},
-    "finance":     {"rev": 2800, "cost": 1600, "trend": 1.04, "desc": "人均中等偏高，运营成本高"},
-    "manufacturing":{"rev": 1800, "cost": 1400, "trend": 1.03, "desc": "人均产出低，劳动密集"},
-    "energy":      {"rev": 2500, "cost": 1800, "trend": 1.02, "desc": "人均资源产出高，设备成本高"},
-    "consumer":    {"rev": 1600, "cost": 1000, "trend": 1.05, "desc": "薄利多销，成本控制好"},
-    "healthcare":  {"rev": 3000, "cost": 1400, "trend": 1.06, "desc": "高附加值，高毛利"},
+    "tech":        {"rev": 1600, "cost": 1200, "trend": 1.08, "desc": "人均产出高，薪资高"},
+    "finance":     {"rev": 1400, "cost": 1100, "trend": 1.04, "desc": "人均中等偏高，运营成本高"},
+    "manufacturing":{"rev": 1000, "cost": 900, "trend": 1.03, "desc": "人均产出低，劳动密集"},
+    "energy":      {"rev": 1200, "cost": 1100, "trend": 1.02, "desc": "人均资源产出高，设备成本高"},
+    "consumer":    {"rev": 900, "cost": 700, "trend": 1.05, "desc": "薄利多销，成本控制好"},
+    "healthcare":  {"rev": 1500, "cost": 900, "trend": 1.06, "desc": "高附加值，高毛利"},
 }
 SYMBOL_PREFIXES = {
     "tech": "TK", "finance": "FI", "manufacturing": "MF",

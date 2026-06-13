@@ -126,7 +126,7 @@ function handleWsMessage(msg) {
       setTimeout(loadMyOrders, 500);
       break;
 
-    case 'order_cancelled':
+    case "orderbook": break; case "order_cancelled":
       if (msg.data && msg.data.cancelled_count) {
         showToast('已撤销 ' + msg.data.cancelled_count + ' 笔委托', 'success');
       } else {
@@ -152,6 +152,52 @@ function handleWsMessage(msg) {
     case 'chat':
       break;
 
+    case 'quarterly_report':
+      {
+        const d = msg.data;
+        // Show quarterly report modal
+        var qBody = document.getElementById('quarterly-content');
+        if (!qBody) {
+          var modal = document.createElement('div');
+          modal.id = 'quarterly-modal';
+          modal.className = 'modal-overlay';
+          modal.style.display = 'flex';
+          modal.innerHTML = '<div class="modal-box" style="width:520px;max-height:80vh;display:flex;flex-direction:column">' +
+            '<div class="modal-title">📊 季度财报</div>' +
+            '<div id="quarterly-content" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
+            '<div class="modal-actions"><button class="modal-btn" onclick="this.closest(\'.modal-overlay\').style.display=\'none\'">关闭</button></div></div>';
+          document.body.appendChild(modal);
+          qBody = document.getElementById('quarterly-content');
+        } else {
+          document.getElementById('quarterly-modal').style.display = 'flex';
+        }
+        if (!qBody) break;
+        var profitCls = d.profit >= 0 ? '#22c55e' : '#ef4444';
+        qBody.innerHTML =
+          '<div style="background:#1a2a35;border:1px solid #f59e0b;border-radius:8px;padding:14px;margin-bottom:8px;">' +
+          '<div style="font-size:16px;font-weight:700;color:#f59e0b;margin-bottom:8px;">📊 ' + d.period + ' 季度报告</div>' +
+          '<div style="font-size:12px;color:#8899a6;margin-bottom:12px;">行业周期: <b style="color:#fbbf24;">' + d.industry_cycle + '</b></div>' +
+
+          '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #253545;font-size:13px;">' +
+          '<span style="color:#8899a6;">营收</span><span style="color:#c0d0d8;font-weight:700;">¥' + (d.revenue || 0).toLocaleString(undefined,{maximumFractionDigits:2}) + '</span>' +
+          '<span style="color:#8899a6;">利润</span><span style="color:' + profitCls + ';font-weight:700;">¥' + (d.profit || 0).toLocaleString(undefined,{maximumFractionDigits:2}) + '</span>' +
+          '</div>' +
+
+          '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #253545;font-size:13px;">' +
+          '<span style="color:#8899a6;">总资产</span><span style="color:#c0d0d8;">¥' + (d.total_assets || 0).toLocaleString(undefined,{maximumFractionDigits:2}) + '</span>' +
+          '<span style="color:#8899a6;">现金</span><span style="color:#c0d0d8;">¥' + (d.cash || 0).toLocaleString(undefined,{maximumFractionDigits:2}) + '</span>' +
+          '</div>' +
+
+          '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #253545;font-size:13px;">' +
+          '<span style="color:#8899a6;">股价</span><span style="color:#c0d0d8;">¥' + (d.share_price || 0).toFixed(2) + '</span>' +
+          '<span style="color:#8899a6;">员工</span><span style="color:#c0d0d8;">' + (d.employees || 0) + '人</span>' +
+          '</div>' +
+
+          '<div style="margin-top:12px;padding:8px;background:#0f1923;border-radius:4px;font-size:12px;color:#8899a6;text-align:center;">点击关闭按钮继续经营</div>' +
+          '</div>';
+      }
+      break;
+
     case 'regulator_notice':
       {
         const d = msg.data;
@@ -170,7 +216,7 @@ function handleWsMessage(msg) {
       break;
 
     default:
-      console.log('Unknown WS msg:', msg);
+      break;
   }
 }
 
@@ -269,7 +315,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
       // Token expired or invalid
       authToken = null;
+      authUserId = null;
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user_id');
       showAuth();
     }
   } else {

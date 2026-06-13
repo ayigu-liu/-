@@ -34,7 +34,7 @@ async function handleRegister() {
   const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
   const password2 = document.getElementById('reg-password2').value;
-  const nickname = document.getElementById('reg-nickname').value.trim() || email.split('@')[0];
+  const nickname = document.getElementById('reg-nickname').value.trim() || ('玩家' + Math.random().toString(36).slice(2, 6));
   const msgEl = document.getElementById('reg-msg');
 
   if (!email) {

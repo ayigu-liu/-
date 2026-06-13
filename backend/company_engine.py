@@ -143,13 +143,7 @@ async def _process_quarterly(state, tick_count):
                 c.total_assets = round(c.total_assets + reserve_amount + interest_income, 2)
                 c.quarter = q_num
 
-                if net_profit > 0:
-                    if random.random() < min(0.4, net_profit / (salary_cost + 1)) * 0.3:
-                        c.employees += random.randint(1, 3)
-                else:
-                    if random.random() < 0.2:
-                        c.employees = max(5, c.employees - random.randint(1, 2))
-
+                # Employee count only changes through explicit hiring/layoff actions
                 nav = max(c.total_assets / max(c.shares_outstanding, 1), 1.0)
                 eps = net_profit / max(c.shares_outstanding, 1)
                 base_pe = {"tech": 20, "finance": 12, "manufacturing": 10,
@@ -190,6 +184,29 @@ async def _process_quarterly(state, tick_count):
                     state.stocks[c.symbol]["nav"] = round(nav, 2)
 
             await session.commit()
+
+        # Broadcast quarterly report to each company owner
+        for c in companies:
+            owner_id = c.player_id
+            if owner_id in state.players:
+                cycle_name = {"boom": "繁荣", "normal": "正常", "recession": "衰退"}.get(c.industry_cycle if hasattr(c, 'industry_cycle') else 'normal', '正常')
+                report = {
+                    "period": period_str,
+                    "revenue": c.revenue,
+                    "profit": c.profit,
+                    "employees": c.employees,
+                    "share_price": c.share_price,
+                    "industry_cycle": cycle_name,
+                    "cash": c.cash,
+                    "total_assets": c.total_assets,
+                }
+                try:
+                    await manager.send_to(GLOBAL_ROOM_ID, owner_id, {
+                        "type": "quarterly_report",
+                        "data": report,
+                    })
+                except Exception:
+                    pass
 
         await _update_industry_cycles(state, tick_count)
     except Exception as e:
