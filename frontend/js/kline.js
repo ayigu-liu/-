@@ -49,6 +49,8 @@ function _volLC(d) {
   return d.map(function(c){return{time:Math.floor(c.time/1000),value:c.volume||0,color:c.close>=c.open?KLINE.UP_COLOR:KLINE.DOWN_COLOR};});
 }
 
+function initChart() { initLC(); }
+
 function setKlineData(candles) {
   if (!candles || !candles.length) return;
   klineData = candles;

@@ -83,6 +83,7 @@ async function loadMarketData() {
     renderStockSelector();
     renderStockInfo();
     loadInitialKline();
+    if (typeof initChart === 'function') initChart();
     // 首次加载时渲染图表
     if (typeof drawTimeshare === "function" && gameState.klinePeriod === "chart") {
       var tsSym = gameState.selectedStock || (gameState.stocks.length > 0 ? gameState.stocks[0].symbol : "");

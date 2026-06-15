@@ -562,7 +562,13 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; }
   background: var(--bg-primary);
   border-radius: var(--radius-sm);
   position: relative;
+  flex: 1;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
 }
+.kline-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.kline-panel .panel-header { flex-shrink: 0; }
 .kline-container canvas {
   display: block;
   width: 100%;
