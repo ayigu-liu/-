@@ -1720,6 +1720,50 @@ async function submitDecision(decisionType, choice) {
 
 
 
+
+// ============================================================
+// 深度行情（挂单面板）
+// ============================================================
+function renderDepth() {
+  var el = document.getElementById('depth-content');
+  if (!el) return;
+  var sym = gameState.selectedStock || (gameState.stocks.length > 0 ? gameState.stocks[0].symbol : '');
+  var ob = gameState.orderBook || {};
+  var book = ob[sym] || {bids:[], asks:[]};
+  var bids = (book.bids || []).slice(0, 6);
+  var asks = (book.asks || []).slice(0, 6);
+  if (bids.length === 0 && asks.length === 0) {
+    el.innerHTML = '<div class="depth-empty">暂无挂单</div>';
+    return;
+  }
+  var maxQ = 1;
+  bids.concat(asks).forEach(function(o) { if (o.quantity > maxQ) maxQ = o.quantity; });
+  var h = '<div style="font-size:12px;">';
+  // Asks (sell orders) - show best ask last
+  asks.slice().reverse().forEach(function(o) {
+    var pct = (o.quantity / maxQ * 100).toFixed(0);
+    h += '<div style="display:flex;justify-content:space-between;padding:2px 4px;font-size:11px;">' +
+      '<span style="color:#22c55e;font-weight:600;">' + o.price.toFixed(2) + '</span>' +
+      '<span style="color:#c0d0d8;">' + (o.quantity >= 10000 ? (o.quantity/10000).toFixed(1)+'万' : o.quantity) + '</span>' +
+      '<div style="flex:1;height:4px;background:#253545;border-radius:2px;margin:auto 4px;">' +
+      '<div style="height:100%;width:' + pct + '%;background:#22c55e;border-radius:2px;opacity:0.4;"></div></div></div>';
+  });
+  if (asks.length > 0 && bids.length > 0) {
+    var spread = (asks[0].price - bids[0].price).toFixed(2);
+    h += '<div style="text-align:center;font-size:11px;padding:4px;color:#8899a6;border-top:1px solid #253545;border-bottom:1px solid #253545;">价差 ' + spread + '</div>';
+  }
+  bids.forEach(function(o) {
+    var pct = (o.quantity / maxQ * 100).toFixed(0);
+    h += '<div style="display:flex;justify-content:space-between;padding:2px 4px;font-size:11px;">' +
+      '<span style="color:#ef4444;font-weight:600;">' + o.price.toFixed(2) + '</span>' +
+      '<span style="color:#c0d0d8;">' + (o.quantity >= 10000 ? (o.quantity/10000).toFixed(1)+'万' : o.quantity) + '</span>' +
+      '<div style="flex:1;height:4px;background:#253545;border-radius:2px;margin:auto 4px;">' +
+      '<div style="height:100%;width:' + pct + '%;background:#ef4444;border-radius:2px;opacity:0.4;"></div></div></div>';
+  });
+  h += '</div>';
+  el.innerHTML = h;
+}
+
 // ============================================================
 // 新手指引
 // ============================================================

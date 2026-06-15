@@ -146,9 +146,15 @@
         <div class="panel panel-tabbed">
           <div class="panel-tabs">
             <button class="tab-btn active" data-tab="leaderboard" onclick="switchRightTab('leaderboard')">排行榜</button>
+            <button class="tab-btn" data-tab="depth" onclick="switchRightTab('depth')">挂单</button>
           </div>
           <div class="tab-panel active" id="tab-leaderboard">
             <div class="leaderboard" id="leaderboard"></div>
+          </div>
+          <div class="tab-panel" id="tab-depth">
+            <div class="depth-book" id="depth-content">
+              <div class="depth-empty">暂无挂单</div>
+            </div>
           </div>
         </div>
       </div>

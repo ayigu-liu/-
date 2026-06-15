@@ -257,7 +257,7 @@ async def load_all_player_states():
 
 
 async def save_market_state():
-    """将当前股价和成交量保存到数据库。
+    """将当前股价/成交量保存到数据库。
        利用 player_state 表做 KV 存储，key 为 _market_<symbol>。
        每 60 tick 自动保存一次。"""
     state = get_global_state()

@@ -128,7 +128,11 @@ function handleWsMessage(msg) {
       setTimeout(loadMyOrders, 500);
       break;
 
-    case "orderbook": break; case "order_cancelled":
+    case "orderbook":
+      gameState.orderBook = msg.data || {};
+      if (typeof renderDepth === 'function') renderDepth();
+      break;
+    case "order_cancelled":
       if (msg.data && msg.data.cancelled_count) {
         showToast('已撤销 ' + msg.data.cancelled_count + ' 笔委托', 'success');
       } else {
