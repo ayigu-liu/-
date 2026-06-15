@@ -17,7 +17,6 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str = Query("")):
         await websocket.close(code=4001)
         return
 
-    await websocket.accept()
     await manager.connect(GLOBAL_ROOM_ID, player_id, websocket)
 
     # 从数据库恢复玩家状态（现金、持仓、冻结等），保证重启不丢失进度
