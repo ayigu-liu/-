@@ -12,7 +12,7 @@ from sqlalchemy import select, desc
 from backend.config import PRICE_TICK_INTERVAL
 from backend.database import async_session
 from backend.models import Company, CompanyQuarterly
-from backend.game_engine import get_global_state, GLOBAL_ROOM_ID
+from backend.game_engine import get_global_state, GLOBAL_ROOM_ID, mark_dirty
 from backend.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
@@ -138,6 +138,25 @@ async def _process_quarterly(state, tick_count):
                 div_pct = alloc.get("dividend", 25) / 100.0
                 dividend_paid = max(0, net_profit * div_pct) if net_profit > 0 else 0
                 reserve_amount = max(0, net_profit * reserve_pct) if net_profit > 0 else 0
+
+                # 分红分给所有股东
+                if dividend_paid > 0:
+                    total_held = 0
+                    holder_shares: dict[str, int] = {}
+                    for pid_h, hlds in state.holdings.items():
+                        h = hlds.get(c.symbol)
+                        if h and h.get("qty", 0) > 0:
+                            hq = h["qty"] - h.get("frozen_qty", 0)
+                            if hq > 0:
+                                holder_shares[pid_h] = hq
+                                total_held += hq
+                    if total_held > 0:
+                        for pid_h, hq in holder_shares.items():
+                            share = round(dividend_paid * hq / total_held, 2)
+                            if share > 0 and pid_h in state.players:
+                                state.players[pid_h]["cash"] = round(state.players[pid_h]["cash"] + share, 2)
+                                if not pid_h.startswith(("ai_", "npc_", "inst_", "hot_", "q_", "nat_", "retail_", "zhuangjia")):
+                                    mark_dirty(pid_h)
 
                 c.revenue = round(revenue, 2)
                 c.profit = round(net_profit, 2)

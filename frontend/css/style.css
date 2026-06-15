@@ -302,8 +302,41 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; }
   .user-email { display: none; }
 }
 
-@media (max-width: 400px) {
-  .modal-content { padding: 20px; }
+@media (max-width: 480px) {
+  .game-header { padding: 4px 6px; gap: 3px; font-size: 11px; }
+  .header-left .room-code { font-size: 13px; letter-spacing: 0; }
+  .header-right .btn { font-size: 12px !important; padding: 1px 3px !important; min-width: 28px; }
+  .stock-price-header { font-size: 14px; }
+  .tick-countdown { font-size: 11px; min-width: auto; }
+  .stock-info-bar { gap: 4px; padding: 2px 4px; font-size: 10px; overflow-x: auto; }
+  .stock-info-bar .sib-sep { display: none; }
+  .sib-stat .sib-label { display: none; }
+  #stock-selector { max-width: 100px; font-size: 11px; padding: 1px 3px; }
+  .panel-header { font-size: 11px; padding: 5px 8px; }
+  .kline-period-btn { font-size: 10px; padding: 1px 6px; }
+  .game-grid { padding: 4px; gap: 6px; }
+  .ftp { width: 98vw; right: 1vw; top: 50px; max-height: calc(100vh - 55px); font-size: 11px; }
+  .ftp-body { max-height: calc(100vh - 100px); }
+  .ftp-header { padding: 4px 8px; font-size: 11px; }
+  .ftp-section { padding: 5px 8px; }
+  .ftp-pf-value { font-size: 15px; }
+  .ftp-trade-row { gap: 4px; font-size: 11px; }
+  .ftp-quick-btns .btn { font-size: 10px; padding: 2px 6px; }
+  .lb-row { font-size: 11px; padding: 3px 8px; grid-template-columns: 20px 1fr 70px; }
+  .tab-panel .leaderboard { max-height: 150px; }
+  .holding-row { font-size: 11px; padding: 3px 6px; grid-template-columns: 1fr 1fr 1fr; }
+  .holding-row span:nth-child(1) { display: none; } /* hide header stock name */
+  .holding-row span:nth-child(3), .holding-row span:nth-child(4), .holding-row span:nth-child(6), .holding-row span:nth-child(7) { display: none; }
+  .modal-box { width: 95vw !important; margin: 10px auto; max-height: 90vh; }
+  .auth-box { padding: 20px 16px; }
+  #quarterly-content { font-size: 11px; }
+  .ob-row { font-size: 10px; padding: 1px 2px; }
+  .tape-row { font-size: 10px; padding: 1px 2px; }
+  .comp-stat-row { font-size: 11px; padding: 3px 0; }
+  .conn-status { font-size: 9px; padding: 1px 3px; }
+  .industry-card { padding: 4px 8px; margin: 3px; font-size: 11px; }
+  .cash-action-card { padding: 6px; font-size: 11px; }
+  .btn, .btn-sm, .btn-xs { font-size: 11px; padding: 4px 10px; }
 }
 
 /* Mobile responsive floating panels */
