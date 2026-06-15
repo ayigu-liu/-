@@ -158,6 +158,10 @@ async def _process_quarterly(state, tick_count):
                                 if not pid_h.startswith(("ai_", "npc_", "inst_", "hot_", "q_", "nat_", "retail_", "zhuangjia")):
                                     mark_dirty(pid_h)
 
+                # 管理费：每季度总资产的 1% 作为运营消耗（经济循环用）
+                mgmt_fee = round(c.total_assets * 0.01, 2)
+                c.cash = round(c.cash - mgmt_fee, 2)
+
                 c.revenue = round(revenue, 2)
                 c.profit = round(net_profit, 2)
                 c.cash = round(c.cash + net_profit - dividend_paid, 2)

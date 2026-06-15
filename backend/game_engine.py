@@ -705,6 +705,12 @@ async def price_tick_loop():
             for pid, pdata in list(state.players.items()):
                 if pid.startswith(("ai_", "npc_", "inst_", "hot_", "q_", "nat_", "_market_", "retail_")):
                     continue
+                # 个人闲置资金管理费：超过10万的部分每季度收2%
+                cash_hold = pdata.get("cash", 0)
+                if cash_hold > 100000:
+                    wealth_fee = round((cash_hold - 100000) * 0.02, 2)
+                    pdata["cash"] = round(cash_hold - wealth_fee, 2)
+                    mark_dirty(pid)
                 rq = pdata.get("_sec_restrict_quarters", 0)
                 if rq > 0:
                     pdata["_sec_restrict_quarters"] = rq - 1
