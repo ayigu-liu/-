@@ -1821,7 +1821,7 @@ function showOnboarding() {
   modal.style.display = 'flex';
   modal.innerHTML = '<div class="modal-box" style="width:420px;">' +
     '<div class="modal-title">🎮 新手指南</div>' + html +
-    '<div class="modal-actions"><button class="modal-btn modal-btn-primary" onclick="this.closest('.modal-overlay').remove();localStorage.setItem('tutorial_done','1')">我知道了</button></div></div>';
+    '<div class="modal-actions"><button class="modal-btn modal-btn-primary" onclick="this.closest(\'.modal-overlay\').remove();localStorage.setItem(\'tutorial_done\',\'1\')">我知道了</button></div></div>';
   document.body.appendChild(modal);
 }
 

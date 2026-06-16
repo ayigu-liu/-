@@ -122,8 +122,8 @@
         <div class="panel kline-panel" style="flex:1;">
           <div class="panel-header">K线图</div>
           <div class="kline-container">
-            <canvas id="kline-canvas" width="400" height="360" style="display:none;"></canvas>
-            <div id="lc-chart" style="width:100%;height:350px;min-height:250px;"></div>
+            <canvas id="kline-canvas" width="400" height="360"></canvas>
+            <div class="kline-axis-x" id="kline-time">--:--</div>
             <div class="kline-period-selector">
               <button class="kline-period-btn active" data-period="chart" onclick="switchKlinePeriod('chart')">分时</button>
               <button class="kline-period-btn" data-period="kline-4t" onclick="switchKlinePeriod('kline-4t')">K线</button>
@@ -524,13 +524,12 @@
   </div>
 
 <script src="js/utils.js"></script>
-<script src="js/lightweight-charts.js"></script>
-<script src="js/kline.js"></script>
+<script src="js/kline.js?v=1"></script>
 <script src="js/api.js"></script>
 <script src="js/auth.js?v=2"></script>
 <script src="js/websocket.js?v=2"></script>
 <script src="js/gameState.js"></script>
-<script src="js/ui/game.js?v=14"></script>
+<script src="js/ui/game.js?v=15"></script>
 <script src="js/main.js?v=3"></script>
 </body>
 </html>
