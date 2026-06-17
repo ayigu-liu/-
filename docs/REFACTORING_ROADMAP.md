@@ -97,7 +97,7 @@ jjs-server/                        # 新建项目根目录
 ### P1.2: React 前端骨架 (1.5 天)
 
 ```
-jjs-server/web-src/                # 前端源码目录
+jjs-web/                # 前端源码目录
 ├── package.json
 ├── vite.config.ts
 ├── tsconfig.json
