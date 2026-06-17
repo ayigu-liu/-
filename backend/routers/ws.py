@@ -13,11 +13,16 @@ router = APIRouter()
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, player_id: str = Query("")):
-    if not player_id:
-        await websocket.close(code=4001)
-        return
+    try:
+        if not player_id:
+            await websocket.close(code=4001)
+            return
 
-    await manager.connect(GLOBAL_ROOM_ID, player_id, websocket)
+        logger.info(f"WS connection attempt: player_id={player_id}")
+        await manager.connect(GLOBAL_ROOM_ID, player_id, websocket)
+    except Exception as e:
+        logger.error(f"WS connect failed: {e}", exc_info=True)
+        return
 
     # 从数据库恢复玩家状态（现金、持仓、冻结等），保证重启不丢失进度
     # 如果是新玩家，load_player_state 不会创建记录，由下面 if 兜底初始化为 STARTING_CASH

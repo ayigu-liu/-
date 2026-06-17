@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp, Scope, Receive, Send
 from contextlib import asynccontextmanager
 
 from backend.database import init_db
@@ -70,24 +71,31 @@ async def favicon():
     return Response(status_code=204)
 
 
-# Frontend static file serving (middleware, not catch-all route, so it doesn't block API methods)
-@app.middleware("http")
-async def serve_static_or_fallback(request: Request, call_next):
-    response = await call_next(request)
-    if response.status_code == 404:
+# Frontend static file serving (raw ASGI middleware to avoid breaking WebSocket)
+class StaticFileMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        request = Request(scope, receive)
         path = request.url.path.lstrip("/")
         safe_path = path.replace("\\", "/")
         file_path = (FRONTEND_DIR / safe_path).resolve()
         if str(file_path).startswith(str(FRONTEND_DIR.resolve())) and file_path.is_file():
             suffix = file_path.suffix.lower()
             media_type = MIME_TYPES.get(suffix, "application/octet-stream")
-            return FileResponse(str(file_path), media_type=media_type)
-        # SPA fallback: serve index.html for non-file paths
-        # Don't intercept API 404s — let them return JSON
-        if path.startswith("api/"):
-            return response
-        if not path or "." not in path:
+            response = FileResponse(str(file_path), media_type=media_type)
+            await response(scope, receive, send)
+            return
+        if not path.startswith("api/") and ("." not in path or path == ""):
             index_path = FRONTEND_DIR / "index.html"
             if index_path.is_file():
-                return FileResponse(str(index_path), media_type="text/html; charset=utf-8")
-    return response
+                response = FileResponse(str(index_path), media_type="text/html; charset=utf-8")
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+app.add_middleware(StaticFileMiddleware)
