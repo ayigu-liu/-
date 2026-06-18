@@ -204,14 +204,19 @@ AP 上限从 3 起，每年考核通过 +1 (最高 5)
 
 ### 7.2 淤积行为
 
-| 行业 | 淤积物 | 何时产生 | 惩罚 |
-|------|--------|---------|------|
-| 制造 | 库存 | 产出 > 销量 | 仓储费 ¥0.5/件/季 |
-| 能源 | 资源堆积 | 开采 > 卖出 | 仓储费 ¥0.3/单位/季 |
-| 科技 | 闲置容量 | 用户 < 服务器容量 | 维护费 ¥10/空位/季 |
-| 金融 | 闲置资金 | 现金 > 可管理资本 | 贬值 0.5%/季 |
-| 消费 | 品牌冷却 | 未做营销的季度 | 客流量 -15%/季 |
-| 医疗 | 管线积压 | 项目长期未获批 | 研究员流失 1 人/4Q |
+| 行业 | 淤积物 | 何时产生 | 惩罚 | DB 表示 |
+|------|--------|---------|------|--------|
+| 制造 | 库存 | 产出 > 销量 | 仓储费 ¥0.5/件/季 | `Inventory` (累积量) |
+| 能源 | 资源堆积 | 开采 > 卖出 | 仓储费 ¥0.3/单位/季 | `Inventory` (累积量) |
+| 科技 | 闲置容量 | 用户 < 服务器容量 | 维护费 ¥10/空位/季 | 即时计算 |
+| 金融 | 闲置资金 | 现金 > 可管理资本 | 贬值 0.5%/季 | 即时计算 |
+| 消费 | 品牌冷却 | 未做营销的季度 | 客流量 -15%/季 | `SludgeLevel` (计数器) |
+| 医疗 | 管线积压 | 项目长期未获批 | 研究员流失 1 人/4Q | `SludgeLevel` (计数器) |
+
+**DB 设计**：淤积不拆分行业专属字段，而是使用 2 个通用字段覆盖所有行为：
+- `Inventory float64` — 物理累积量（制造/能源的库存和资源堆，其余行业为 0）
+- `SludgeLevel int` — 状态计数器（消费的品牌冷却等级、医疗的管线积压计数，其余行业为 0）
+- 科技/金融的淤积（闲置容量/资金）在季度结算时由公式即时计算，不持久化
 
 ### 7.3 各行业的风格差异
 
@@ -409,50 +414,63 @@ AP 上限从 3 起，每年考核通过 +1 (最高 5)
 
 ---
 
-## 十四、实现要点
+## 十四、实现要点（Go 版）
+
+### 数据模型
+
+```
+Company 表核心字段：
+  CEOID, Symbol, Name, Industry, Cash, Employees, Quarter, Status
+  TotalShares  — 总股本（行业常量，创建时写入）
+  CapCount     — 天花板单元数量
+  Inventory    — 物理淤积量（制造/能源库存，其余行业=0）
+  SludgeLevel  — 状态淤积等级（消费品牌冷却/医疗管线积压）
+
+CapBuildOrder 表（建造队列）：
+  CompanyID, ReadyQuarter, Completed
+  支持多季度连续扩产：每次扩产插入一行，季度结算时检查到期行
+
+CompanyQuarterly 表（季度快照）：
+  Revenue, Profit, Cash, Employees, TotalShares, CapCount, Inventory, SludgeLevel
+  创建公司时自动写入 Q0 快照 (quarter=0) 作为图表起始点
+```
 
 ### 后端
 
 ```
-backend/engine/company_v2.py      # 核心逻辑 (~300行)
-  ├── class CompanyState          # 公司内存状态
-  ├── def process_quarter()       # 季度结算
-  ├── def execute_actions()       # 执行 AP 决策
-  ├── def roll_random_event()     # 随机事件
-  ├── def evaluate_board()        # 董事会年度考核
-  └── def compute_stock_price()   # 简化股价公式
-
-backend/engine/company_actions.py # 行动定义 (~100行)
-  └── ACTION_DEFS dict            # 所有行动的效果/成本/约束
-       ├── 经营类 5 个
-       ├── 资本类 3 个
-       ├── 战略类 3 个
-       └── 行业专属 6 个
-
-backend/engine/industry.py        # 行业配置 (扩展现有 industry_config.py)
-  └── 行业 PE / 人均产出 / 独有行动 / 周期参数
+jjs-server/internal/
+├── engine/
+│   └── industry.go          # 6 行业完整常量配置
+├── domain/
+│   └── models.go            # GORM 模型定义
+├── store/
+│   ├── db.go                # GORM + AutoMigrate
+│   └── company.go           # 公司 CRUD + 建造队列 + 季度报表
+├── handler/
+│   ├── auth.go              # 注册/登录
+│   ├── player.go            # 玩家信息
+│   └── company.go           # 公司创建 + 状态查询
+└── router/
+    └── router.go            # 路由注册（从 main.go 独立）
 ```
 
 ### 前端
 
 ```
-frontend/src/components/company/
-├── CompanyDashboard.tsx    # 公司状态面板
-├── ActionMenu.tsx          # AP 行动菜单 (勾选式)
-├── BoardReport.tsx         # 董事会满意度 + KPI 进度条
-├── QuarterlyResult.tsx     # 季度财报弹窗
-└── RandomEventToast.tsx    # 随机事件通知
+jjs-web/src/
+├── types/index.ts           # CompanyState / QuarterlyReport 类型定义
+├── api/queries.ts           # useCompanyState / useQuarterlyReports hooks
+└── pages/CompanyPage.tsx    # 创建公司（行业选择+起名） + 公司仪表盘
 ```
 
 ### API
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/company/v2/state` | 公司状态 (用于渲染面板) |
-| POST | `/api/company/v2/actions` | 提交本季度决策 |
-| GET | `/api/company/v2/board` | 董事会状态 + KPI 进度 |
-| GET | `/api/company/v2/quarterly` | 季度财报历史 |
-| WS | `quarterly_report` | 已有，保持不变 |
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| POST | `/api/company/create` | JWT | 创建公司（选择行业+起名） |
+| GET | `/api/company/state` | JWT | 公司完整状态（含季度历史） |
+
+*注：路径不使用 `/v2/` 前缀，重写即为新系统。*
 
 ---
 

@@ -194,55 +194,78 @@ jjs-web/                # 前端源码目录
 | `backend/company_engine.py` | v1 公司季度结算（仅参考流程结构） |
 | `backend/industry_config.py` | v1 行业分类 |
 
-### Company 当前骨架（P1 清理后）
+### P2.1 完成状态（2026-06-18）
+
+> P2.1 已实现：行业常量配置 + 三维数据模型 + 公司创建/状态查询 API + 路由拆分 + 前端公司页。
+
+**新增文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `internal/engine/industry.go` | 6 行业完整常量配置（PE/人均营收/起始参数/天花板参数/淤积类型） |
+| `internal/store/company.go` | 公司 CRUD + 建造队列 + 季度报表查询 |
+| `internal/handler/company.go` | `POST /api/company/create` + `GET /api/company/state` |
+| `internal/router/router.go` | 从 main.go 提取全部路由注册 |
+
+**Company 模型新增字段**：
 
 ```go
 type Company struct {
     gorm.Model
-    CEOID     string    // 当前CEO，非唯一（玩家可离职/被踢）
+    CEOID     string    // 当前CEO
+    Symbol    string    // 股票代码，唯一索引
     Name      string    // 公司名
     Industry  string    // 行业
     Cash      float64   // 现金
-    Employees int       // 员工数
+    Employees int       // 员工数（驱动力）
     Quarter   int       // 当前季度
     Status    string    // active | bankrupt
-}
-
-type CompanyQuarterly struct {
-    ID, CompanyID
-    Quarter, Period
-    Revenue, Profit, Cash, Employees
-    CreatedAt
+    // P2.1 新增
+    TotalShares int     // 总股本（行业常量，创建时写入）
+    CapCount    int     // 天花板单元数量
+    Inventory   float64 // 物理淤积量（制造/能源库存，其余行业=0）
+    SludgeLevel int     // 状态淤积等级（消费品牌冷却/医疗管线积压）
 }
 ```
 
-后续每加一个功能（AP、董事会、研发等），只往 `Company` 表加 1-2 个字段。
+**CapBuildOrder 表（新建）**：
 
-### P2.1: 行业配置与公司创建 (1.5 天)
-
+```go
+type CapBuildOrder struct {
+    gorm.Model
+    CompanyID    uint  // 所属公司
+    ReadyQuarter int   // 建造完成的全局季度号
+    Completed    bool  // 是否已完成
+}
 ```
-internal/engine/
-├── industry.go                    # 行业配置（6 行业参数）
-├── company.go                     # 创建 + 季度结算 + 破产逻辑
-```
 
-**行业配置**:
-- 6 个行业: 科技 / 金融 / 制造 / 能源 / 消费 / 医疗
-- 基础参数: PE、人均营收/季、起始现金、起始员工
+支持多季度连续扩产：每次扩产插入一行，季度结算时检查到期行，建造成本立即扣除。
 
-**公司创建** (POST /api/company/create):
-- 选择行业 → 按行业初始参数写入 Company 表
-- CEOID = 当前玩家 ID，Status = active
-- 限制：同一玩家只能同时经营一家活跃公司
+**CompanyQuarterly 新增快照字段**：`TotalShares`, `CapCount`, `Inventory`, `SludgeLevel`
+——创建公司时自动写入 Q0 快照（`quarter=0`）作为图表起始点。
 
-**季度结算** (每 tick 触发):
-- 计算 Revenue = Employees × 人均产出 (从行业配置读取)
-- 计算 Profit = Revenue - (Employees × 工资) - 固定成本
-- 写入 CompanyQuarterly 快照
+**行业三维的 DB 表示**（设计文档 §七细化）：
 
-**破产判定**:
-- Cash < 0 连续 2 季度 → Status = bankrupt
-- CEOID 清空，玩家可重新创建公司
+淤积拆分为 2 个通用字段覆盖 6 个行业：
+- `Inventory float64` — 物理累积量（制造/能源，其余行业=0）
+- `SludgeLevel int` — 状态计数器（消费/医疗，其余行业=0）
+- 科技/金融的淤积（闲置容量/资金）在季度结算时即时计算
+
+天花板建造前置期在 v1 实现：`CapBuildOrder.ReadyQuarter` 记录完成季度。
+
+**API**（路径不使用 `/v2/` 前缀）：
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| POST | `/api/company/create` | JWT | 创建公司，自动生成 Symbol + Q0 快照 |
+| GET | `/api/company/state` | JWT | 返回公司完整状态（含季度历史 + 待建造队列） |
+
+**路由拆分**：`internal/router/router.go` 独立维护路由注册，`cmd/server/main.go` 精简为引导逻辑。
+
+**前端**：
+- `types/index.ts`：`CompanyState` 扩展 8 字段，`QuarterlyReport` 扩展 4 字段
+- `api/queries.ts`：API 路径去掉 `/v2/` 前缀
+- `pages/CompanyPage.tsx`：无公司→行业选择+创建表单，有公司→仪表盘+季度报表
 
 ### P2.2: AP 行动系统（待 Company 表加 AP/APCap 字段时实现）
 
@@ -271,11 +294,11 @@ internal/engine/
 - ✅ Header 展示现金 / 昵称（优先使用 API 数据）
 - ✅ 注册时自动创建 PlayerState 行（`StartingCash=10,000`）
 
-**产出清单**:
-- 6 行业全部参数配置完成
-- 公司创建 + 行业选择 API 可用
-- 季度结算完整跑通（AP 决策 → 董事会考核 → 股价更新）
-- 17 个行动全部可执行，效果/约束/冷却/递减正确
+**P2 产出清单（整体目标）**:
+- ✅ 6 行业全部参数配置完成
+- ✅ 公司创建 + 行业选择 API 可用
+- ⏳ 季度结算完整跑通（AP 决策 → 董事会考核 → 股价更新）
+- ⏳ 17 个行动全部可执行，效果/约束/冷却/递减正确
 - 研发系统 + 随机事件运转
 - ✅ 玩家基础信息查询 API 可用 (`GET /api/player/info`)
 - ⏳ 玩家资产查询/变动完整 API（待持仓、交易引擎完成后补充）
@@ -648,7 +671,8 @@ internal/handler/
 
 ```
 ✅ P1 完成 (2026-06-18): 项目骨架（Go+GORM+MySQL + React 骨架可运行）
-Week 2-3:    P2 公司运营 v2（AP 系统/董事会/研发/事件）+ 个人资产
+✅ P2.1 完成 (2026-06-18): 行业配置 + 三维数据模型 + 公司创建/查询 API + 路由拆分
+Week 2-3:    P2.2-P2.6 公司运营 v2 持续推进（AP 系统/董事会/研发/事件）
 Week 3-4:    P3 核心交易引擎（订单簿、撮合、行情，对接 v2 股价公式）
 Week 5:      P4 AI 交易者（6 类 Bot）
 Week 5-6:    P5 业务系统（融资、SEC、市场新闻、排行榜）
