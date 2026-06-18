@@ -48,13 +48,14 @@ type Holding struct {
 
 type Company struct {
 	gorm.Model
-	CEOID     string  `gorm:"type:varchar(12);index;not null"`
-	Symbol    string  `gorm:"type:varchar(10);uniqueIndex;not null"`
-	Name      string  `gorm:"type:varchar(50);not null"`
-	Industry  string  `gorm:"type:varchar(20);not null;index:idx_company_industry"`
-	Cash      float64 `gorm:"not null;default:0"`
-	Employees int     `gorm:"not null;default:0"`
-	Quarter   int     `gorm:"not null;default:1"`
+	CEOID              string  `gorm:"type:varchar(12);index;not null"`
+	Symbol             string  `gorm:"type:varchar(10);uniqueIndex;not null"`
+	Name               string  `gorm:"type:varchar(50);not null"`
+	Industry           string  `gorm:"type:varchar(20);not null;index:idx_company_industry"`
+	Cash               float64 `gorm:"not null;default:0"`
+	Employees          int     `gorm:"not null;default:0"`
+	Quarter            int     `gorm:"not null;default:1"`
+	LastSettledQuarter int     `gorm:"not null;default:0"`
 	Status    string  `gorm:"type:varchar(20);not null;default:'active'"`
 	TotalShares int     `gorm:"not null;default:0"`
 	CEOShares   int64   `gorm:"not null;default:0"`
@@ -76,6 +77,7 @@ type CompanyQuarterly struct {
 	Quarter         int       `json:"quarter" gorm:"not null"`
 	Revenue         float64   `json:"revenue" gorm:"not null;default:0"`
 	Profit          int64     `json:"profit" gorm:"not null;default:0"`
+	BeginningCash   int64     `json:"beginning_cash" gorm:"not null;default:0"`
 	Cash            int64     `json:"cash" gorm:"not null;default:0"`
 	LaborCost       int64     `json:"labor_cost" gorm:"not null;default:0"`
 	BaseMaintenance int64     `json:"base_maintenance" gorm:"not null;default:0"`

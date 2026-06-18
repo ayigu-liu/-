@@ -218,6 +218,7 @@ type Company struct {
     Cash      float64   // 现金
     Employees int       // 员工数（驱动力）
     Quarter   int       // 当前季度
+    LastSettledQuarter int // 最近已完成最终结算的季度（用于恢复和去重）
     Status    string    // active | bankrupt
     TotalShares int     // 总股本
     CEOShares   int64   // CEO持股数
@@ -245,7 +246,8 @@ type CompanyQuarterly struct {
     Quarter         int       // 全局季度号（从 GlobalQuarter 取，前端计算 Y/Q）
     Revenue         float64   // 当季营收
     Profit          int64     // 净利润
-    Cash            int64     // 期末现金
+    BeginningCash   int64     // 期初现金（round(结算前公司现金)）
+    Cash            int64     // 期末现金 = BeginningCash + Profit
     LaborCost       int64     // 人力成本 = 员工 × mfgLaborRate
     BaseMaintenance int64     // 基础维护费 = 全部产线 × BaseMaintenanceRate
     OperationalCost int64     // 运营成本 = 开工产线 × OperationalCostRate
@@ -274,11 +276,18 @@ Profit           = Revenue - TotalCost
 ```
 各行业费率（制造例：Base=1000, Op=2000，旧值 Active=3000/Idle=1000 → Base+Op 等价总和无变更）。
 
-**季度结算**：当前仅制造行业启用——非制造业 `settleCompanyBaseline` 直接 `return nil`，待具体行业设计后实现。`formatPeriod` 已删除，季度格式化由前端 `Math.floor((q-1)/4)+1` + `(q-1)%4+1` 计算。创建公司时不再生成 Q0 零值快照，改为立即运行首次 `SettleManufacturing` 结算，生成带实际计算数据的首季报表。
+**季度结算**（两阶段机制）：
 
-**预生成过滤**：季度结算在每个 tick 开始时运行，预生成当前季度（`quarter == GlobalQuarter`）的 CompanyQuarterly。该预生成记录仅为后续 CEO 决策提供 baseline，尚未公开确认。`State` 和 `Quarterly` 接口均过滤掉 `quarter >= GlobalQuarter` 的记录，仅返回已确认的历史季度（`quarter < GlobalQuarter`）。`State` 中的 `revenue`/`profit` 取自 `quarter == GlobalQuarter-1` 的已确认季度。
+1. **预报阶段**（preGenerate）：每个 tick 进入新季度后，异步生成当前季度的 CompanyQuarterly 预报记录。不更新公司现金和 `LastSettledQuarter`，公司不可使用本期利润。
+2. **最终结算阶段**（finalize）：每个 tick 开始时，先结算刚结束的季度——删除预报记录，创建最终季报，利润加入公司现金，更新 `LastSettledQuarter`。
 
-**启动恢复**：`cmd/server/main.go` 启动时调用 `engine.RestoreOrSeedGlobalQuarter()`——DB 无景气度数据则种入所有行业 Q1=1.0 且 `GlobalQuarter=1`；有数据则恢复到最大季度。`GlobalQuarter` 不再硬编码为 1，重启后季度号连续。
+当前仅制造行业启用——非制造业 `settleCompanyBaseline` 直接 `return nil`，待具体行业设计后实现。创建公司时仅生成首季预报（现金仅含初始投资），利润在首次 tick 最终结算时到账。
+
+`Company.LastSettledQuarter` 字段逐公司追踪结算进度，用于启动恢复（`RecoverSettlements`）和最终结算的去重。`settleCompanyBaseline` 带 `c.Quarter > quarter` 保护，防止对公司尚未存在的季度错误结算。
+
+**预生成过滤**：进入新季度后异步生成当前季度的预报记录（`quarter == GlobalQuarter`）。预报仅为前瞻参考，公司现金不包含本期利润。`State` 和 `Quarterly` 接口过滤 `quarter >= GlobalQuarter` 的记录，仅返回已最终结算的历史季度（`quarter < GlobalQuarter`）。`State` 中的 `revenue`/`profit` 取自 `quarter == GlobalQuarter-1` 的已确认季度。
+
+**启动恢复**：`cmd/server/main.go` 启动时调用 `engine.RestoreOrSeedGlobalQuarter()`——DB 无景气度数据则种入所有行业 Q1=1.0 且 `GlobalQuarter=1`；有数据则恢复到最大季度。随后调用 `engine.RecoverSettlements()`——通过 `Company.LastSettledQuarter` 找到未结算的公司，补最终结算旧季度，再补生成当前季度预报。`GlobalQuarter` 不再硬编码为 1，重启后季度号连续。
 
 **API**：
 

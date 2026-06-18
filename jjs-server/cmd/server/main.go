@@ -34,6 +34,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	engine.RecoverSettlements()
+
 	authH := &handler.AuthHandler{}
 	playerH := &handler.PlayerHandler{}
 	companyH := &handler.CompanyHandler{}

@@ -57,6 +57,7 @@ export function QuarterlyPage() {
                   <th className="p-2.5 text-right">营收</th>
                   <th className="p-2.5 text-right">利润</th>
                   <th className="p-2.5 text-right">总成本</th>
+                  <th className="p-2.5 text-right">期初现金</th>
                   <th className="p-2.5 text-right">期末现金</th>
                 </tr>
               </thead>
@@ -74,6 +75,7 @@ export function QuarterlyPage() {
                         ¥{q.profit.toLocaleString()}
                       </td>
                       <td className="p-2.5 text-right text-text-primary">¥{q.total_cost.toLocaleString()}</td>
+                      <td className="p-2.5 text-right text-text-primary">¥{q.beginning_cash.toLocaleString()}</td>
                       <td className="p-2.5 text-right text-text-primary">¥{q.cash.toLocaleString()}</td>
                     </tr>
                   )
@@ -108,11 +110,13 @@ export function QuarterlyPage() {
             <div className="p-4 space-y-4">
               <section>
                 <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">财务摘要</div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <DetailItem label="营收" value={`¥${selected.revenue.toLocaleString()}`} />
                   <DetailItem label="利润" value={`¥${selected.profit.toLocaleString()}`} positive={selected.profit >= 0} />
                   <DetailItem label="总成本" value={`¥${selected.total_cost.toLocaleString()}`} />
+                  <DetailItem label="期初现金" value={`¥${selected.beginning_cash.toLocaleString()}`} />
                   <DetailItem label="期末现金" value={`¥${selected.cash.toLocaleString()}`} />
+                  <DetailItem label="现金流变动" value={`${selected.profit >= 0 ? '+' : ''}¥${selected.profit.toLocaleString()}`} positive={selected.profit >= 0} />
                 </div>
               </section>
 

@@ -154,6 +154,7 @@ export interface QuarterlyReport {
   quarter: number
   revenue: number
   profit: number
+  beginning_cash: number
   cash: number
   labor_cost: number
   base_maintenance: number

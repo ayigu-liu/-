@@ -214,13 +214,15 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			ind.OperationalCostRate,
 		)
 
-		newCash := int64(math.Round(company.Cash)) + result.Profit
+		beginningCash := int64(math.Round(company.Cash))
+		newCash := beginningCash + result.Profit
 
 		quarterly := &domain.CompanyQuarterly{
 			CompanyID:       company.ID,
 			Quarter:         currentQuarter,
 			Revenue:         result.Revenue,
 			Profit:          result.Profit,
+			BeginningCash:   beginningCash,
 			Cash:            newCash,
 			LaborCost:       result.LaborCost,
 			BaseMaintenance: result.BaseMaintenance,
@@ -240,7 +242,6 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			slog.Error("create initial quarterly failed", "error", err)
 		}
 
-		company.Cash = float64(newCash)
 		company.Inventory = result.Inventory
 		company.Demand = result.Demand
 		company.Quarter = currentQuarter

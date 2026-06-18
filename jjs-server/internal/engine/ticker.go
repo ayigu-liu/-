@@ -41,11 +41,18 @@ func (t *Ticker) Stop() {
 }
 
 func (t *Ticker) onQuarterTick() {
+	// Step 0: finalize the quarter that just ended (sync, updates cash)
+	currentQ := int(GlobalQuarter.Load())
+	if currentQ > 0 {
+		finalizeQuarter(currentQ)
+	}
+
+	// Step 1: advance to the new quarter
 	q := GlobalQuarter.Add(1)
 
 	slog.Info("quarter tick", "quarter", q)
 
-	// Step 1: prosperity update for all industries
+	// Step 2: prosperity update for the new quarter
 	for id, cfg := range Industries {
 		prev, err := store.LatestProsperity(id)
 		if err != nil {
@@ -59,44 +66,72 @@ func (t *Ticker) onQuarterTick() {
 	}
 	slog.Info("prosperity updated", "quarter", q)
 
-	// Step 2: batch baseline settlement in background
-	go t.batchSettle(int(q))
+	// Step 3: pre-generate quarterly projections for the new quarter (async, cash untouched)
+	go preGenerateQuarter(int(q))
 }
 
-func (t *Ticker) batchSettle(quarter int) {
+func finalizeQuarter(quarter int) {
 	companies, err := store.GetActiveCompanies()
 	if err != nil {
-		slog.Error("failed to get active companies", "error", err)
+		slog.Error("finalize: failed to get active companies", "error", err)
 		return
 	}
 
-	slog.Info("batch settlement started", "companies", len(companies), "quarter", quarter)
+	slog.Info("finalizing quarter", "companies", len(companies), "quarter", quarter)
 
 	for i, c := range companies {
 		if i%20 == 0 && i > 0 {
-			// yield every 20 companies to avoid CPU hogging
 			time.Sleep(50 * time.Millisecond)
 		}
 
-		if err := settleCompanyBaseline(&c, quarter); err != nil {
-			slog.Error("settlement failed", "company", c.ID, "error", err)
+		if err := settleCompanyBaseline(&c, quarter, true); err != nil {
+			slog.Error("finalize failed", "company", c.ID, "error", err)
 		}
 	}
 
-	slog.Info("batch settlement complete", "companies", len(companies), "quarter", quarter)
+	slog.Info("finalize complete", "companies", len(companies), "quarter", quarter)
 }
 
-func settleCompanyBaseline(c *domain.Company, quarter int) error {
-	// Check if quarterly snapshot already exists
-	exists, err := store.QuarterlyExists(c.ID, quarter)
+func preGenerateQuarter(quarter int) {
+	companies, err := store.GetActiveCompanies()
 	if err != nil {
-		return err
-	}
-	if exists {
-		return nil
+		slog.Error("pregen: failed to get active companies", "error", err)
+		return
 	}
 
-	// Get current prosperity
+	slog.Info("pre-generating quarterly projections", "companies", len(companies), "quarter", quarter)
+
+	for i, c := range companies {
+		if i%20 == 0 && i > 0 {
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		if err := settleCompanyBaseline(&c, quarter, false); err != nil {
+			slog.Error("pregen failed", "company", c.ID, "error", err)
+		}
+	}
+
+	slog.Info("pre-generation complete", "companies", len(companies), "quarter", quarter)
+}
+
+func settleCompanyBaseline(c *domain.Company, quarter int, finalize bool) error {
+	if finalize {
+		if c.LastSettledQuarter >= quarter {
+			return nil
+		}
+		if c.Quarter > quarter {
+			return nil
+		}
+	} else {
+		exists, err := store.QuarterlyExists(c.ID, quarter)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+	}
+
 	prosperity, err := store.LatestProsperity(c.Industry)
 	if err != nil {
 		prosperity = 1.0
@@ -105,35 +140,41 @@ func settleCompanyBaseline(c *domain.Company, quarter int) error {
 	cfg := Industries[c.Industry]
 
 	if c.Industry == "manufacturing" {
-		return settleManufacturing(c, cfg, prosperity, quarter, false)
+		return settleManufacturing(c, cfg, prosperity, quarter, false, finalize)
 	}
 
 	return nil
 }
 
-func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float64, quarter int, marketing bool) error {
-		result := SettleManufacturing(
-			c.ID,
-			c.Employees,
-			c.CapCount,
-			c.Inventory,
-			c.Demand,
-			prosperity,
-			quarter,
-			marketing,
-			cfg.BaseMaintenanceRate,
-			cfg.OperationalCostRate,
-		)
+func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float64, quarter int, marketing bool, finalize bool) error {
+	result := SettleManufacturing(
+		c.ID,
+		c.Employees,
+		c.CapCount,
+		c.Inventory,
+		c.Demand,
+		prosperity,
+		quarter,
+		marketing,
+		cfg.BaseMaintenanceRate,
+		cfg.OperationalCostRate,
+	)
 
-	newCash := int64(math.Round(c.Cash)) + result.Profit
+	beginningCash := int64(math.Round(c.Cash))
+	newCash := beginningCash + result.Profit
 
 	tx := store.DB.Begin()
+
+	if finalize {
+		tx.Where("company_id = ? AND quarter = ?", c.ID, quarter).Delete(&domain.CompanyQuarterly{})
+	}
 
 	if err := tx.Create(&domain.CompanyQuarterly{
 		CompanyID:       c.ID,
 		Quarter:         quarter,
 		Revenue:         result.Revenue,
 		Profit:          result.Profit,
+		BeginningCash:   beginningCash,
 		Cash:            newCash,
 		LaborCost:       result.LaborCost,
 		BaseMaintenance: result.BaseMaintenance,
@@ -153,15 +194,54 @@ func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float
 		return err
 	}
 
-	if err := tx.Model(c).Updates(map[string]interface{}{
-		"cash":      float64(newCash),
-		"inventory": result.Inventory,
-		"demand":    result.Demand,
-		"quarter":   quarter,
-	}).Error; err != nil {
-		tx.Rollback()
-		return err
+	if finalize {
+		if err := tx.Model(c).Updates(map[string]interface{}{
+			"cash":                 float64(newCash),
+			"inventory":            result.Inventory,
+			"demand":               result.Demand,
+			"quarter":              quarter,
+			"last_settled_quarter": quarter,
+		}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	return tx.Commit().Error
+}
+
+func RecoverSettlements() {
+	currentQ := int(GlobalQuarter.Load())
+	if currentQ <= 1 {
+		return
+	}
+
+	targetQ := currentQ - 1
+	companies, err := store.GetActiveCompanies()
+	if err != nil {
+		slog.Error("recover settlements: failed to get active companies", "error", err)
+		return
+	}
+
+	pending := 0
+	for i, c := range companies {
+		if c.LastSettledQuarter >= targetQ {
+			continue
+		}
+		if i > 0 && i%20 == 0 {
+			time.Sleep(50 * time.Millisecond)
+		}
+		if err := settleCompanyBaseline(&c, targetQ, true); err != nil {
+			slog.Error("recover settlement failed", "company", c.ID, "error", err)
+			continue
+		}
+		pending++
+	}
+
+	if pending > 0 {
+		slog.Info("recovered pending settlements", "count", pending, "quarter", targetQ)
+	}
+
+	slog.Info("pre-generating projections for current quarter", "quarter", currentQ)
+	preGenerateQuarter(currentQ)
 }
