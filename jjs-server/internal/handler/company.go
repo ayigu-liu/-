@@ -16,8 +16,10 @@ import (
 type CompanyHandler struct{}
 
 type createCompanyRequest struct {
-	Name     string `json:"name"`
-	Industry string `json:"industry"`
+	Name             string  `json:"name"`
+	Industry         string  `json:"industry"`
+	TotalShares      int     `json:"total_shares"`
+	PlayerInvestment float64 `json:"player_investment"`
 }
 
 type createCompanyResponse struct {
@@ -27,6 +29,9 @@ type createCompanyResponse struct {
 	Industry  string  `json:"industry"`
 	Cash      float64 `json:"cash"`
 	Employees int     `json:"employees"`
+	TotalShares int   `json:"total_shares"`
+	CEOShares   int64 `json:"ceo_shares"`
+	OwnRatio    float64 `json:"own_ratio"`
 }
 
 type companyStateResponse struct {
@@ -40,6 +45,9 @@ type companyStateResponse struct {
 	Employees       int     `json:"employees"`
 	Status          string  `json:"status"`
 	TotalShares     int     `json:"total_shares"`
+	CEOShares       int64   `json:"ceo_shares"`
+	SocialShares    int64   `json:"social_shares"`
+	OwnRatio        float64 `json:"own_ratio"`
 	CapCount        int     `json:"cap_count"`
 	Inventory       float64 `json:"inventory"`
 	SludgeLevel     int     `json:"sludge_level"`
@@ -93,8 +101,14 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := engine.Industries[req.Industry]; !ok {
+	ind, ok := engine.Industries[req.Industry]
+	if !ok {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "无效的行业"})
+		return
+	}
+
+	if !ind.Enabled {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "该行业暂未开放"})
 		return
 	}
 
@@ -104,7 +118,34 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ind := engine.Industries[req.Industry]
+	if req.TotalShares < 10000 || req.TotalShares > 200000 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "总股本需在 1万 到 20万 之间"})
+		return
+	}
+
+	ceoShares := int64(10000)
+	ownRatio := float64(10000) / float64(req.TotalShares)
+	if ownRatio < 0.05 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "出资比例不能低于 5%"})
+		return
+	}
+
+	if req.PlayerInvestment <= 0 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "出资额必须大于 0"})
+		return
+	}
+
+	ps, err := store.GetPlayerState(userID)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "获取玩家状态失败"})
+		return
+	}
+	if ps.Cash < req.PlayerInvestment {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "可用现金不足"})
+		return
+	}
+
+	companyCash := req.PlayerInvestment / ownRatio
 
 	symbol, err := generateSymbol(req.Industry)
 	if err != nil {
@@ -118,11 +159,12 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Symbol:      symbol,
 		Name:        req.Name,
 		Industry:    req.Industry,
-		Cash:        ind.StartingCash,
+		Cash:        companyCash,
 		Employees:   ind.StartingEmployees,
 		Quarter:     1,
 		Status:      "active",
-		TotalShares: ind.SharesOutstanding,
+		TotalShares: req.TotalShares,
+		CEOShares:   ceoShares,
 		CapCount:    1,
 	}
 
@@ -132,16 +174,22 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Q0 quarterly snapshot as starting point
+	if err := store.DeductCash(userID, req.PlayerInvestment, "创建公司: "+req.Name); err != nil {
+		slog.Error("deduct cash failed", "error", err)
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "扣款失败"})
+		return
+	}
+
 	q0 := &domain.CompanyQuarterly{
 		CompanyID:   company.ID,
 		Quarter:     0,
 		Period:      "Q0",
 		Revenue:     0,
 		Profit:      0,
-		Cash:        ind.StartingCash,
+		Cash:        companyCash,
 		Employees:   ind.StartingEmployees,
-		TotalShares: ind.SharesOutstanding,
+		TotalShares: req.TotalShares,
+		CEOShares:   ceoShares,
 		CapCount:    1,
 		Inventory:   0,
 		SludgeLevel: 0,
@@ -151,12 +199,15 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusCreated, createCompanyResponse{
-		ID:        company.ID,
-		Symbol:    company.Symbol,
-		Name:      company.Name,
-		Industry:  company.Industry,
-		Cash:      company.Cash,
-		Employees: company.Employees,
+		ID:          company.ID,
+		Symbol:      company.Symbol,
+		Name:        company.Name,
+		Industry:    company.Industry,
+		Cash:        company.Cash,
+		Employees:   company.Employees,
+		TotalShares: company.TotalShares,
+		CEOShares:   company.CEOShares,
+		OwnRatio:    ownRatio,
 	})
 }
 
@@ -193,6 +244,9 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ownRatio := float64(10000) / float64(company.TotalShares)
+	socialShares := int64(company.TotalShares) - company.CEOShares
+
 	WriteJSON(w, http.StatusOK, companyStateResponse{
 		ID:            company.ID,
 		Symbol:        company.Symbol,
@@ -204,6 +258,9 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		Employees:     company.Employees,
 		Status:        company.Status,
 		TotalShares:   company.TotalShares,
+		CEOShares:     company.CEOShares,
+		SocialShares:  socialShares,
+		OwnRatio:      ownRatio,
 		CapCount:      company.CapCount,
 		Inventory:     company.Inventory,
 		SludgeLevel:   company.SludgeLevel,

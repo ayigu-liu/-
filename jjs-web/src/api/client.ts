@@ -27,7 +27,7 @@ class ApiClient {
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({ detail: res.statusText }))
-      throw new Error(body.detail ?? body.message ?? `HTTP ${res.status}`)
+      throw new Error(body.detail ?? body.message ?? body.error ?? `HTTP ${res.status}`)
     }
 
     return res.json()

@@ -15,6 +15,17 @@ type IndustryConfig struct {
 	SludgeType        string
 	SludgePenalty     float64
 	HireCost          float64
+	Enabled           bool
+}
+
+func EnabledIndustries() []string {
+	var ids []string
+	for id, ind := range Industries {
+		if ind.Enabled {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 var Industries = map[string]IndustryConfig{
@@ -33,6 +44,8 @@ var Industries = map[string]IndustryConfig{
 		SludgeType:        "computed",
 		SludgePenalty:     10,
 		HireCost:          5000,
+		// TODO: 逐步开放各行业，当前全部禁用
+		Enabled:           false,
 	},
 	"finance": {
 		ID:                "finance",
@@ -49,6 +62,7 @@ var Industries = map[string]IndustryConfig{
 		SludgeType:        "computed",
 		SludgePenalty:     0.005,
 		HireCost:          3000,
+		Enabled:           false,
 	},
 	"manufacturing": {
 		ID:                "manufacturing",
@@ -65,6 +79,7 @@ var Industries = map[string]IndustryConfig{
 		SludgeType:        "inventory",
 		SludgePenalty:     0.5,
 		HireCost:          3000,
+		Enabled:           false,
 	},
 	"energy": {
 		ID:                "energy",
@@ -81,6 +96,7 @@ var Industries = map[string]IndustryConfig{
 		SludgeType:        "inventory",
 		SludgePenalty:     0.3,
 		HireCost:          3000,
+		Enabled:           false,
 	},
 	"consumer": {
 		ID:                "consumer",
@@ -97,6 +113,7 @@ var Industries = map[string]IndustryConfig{
 		SludgeType:        "cooldown",
 		SludgePenalty:     0.15,
 		HireCost:          3000,
+		Enabled:           false,
 	},
 	"healthcare": {
 		ID:                "healthcare",
@@ -113,5 +130,6 @@ var Industries = map[string]IndustryConfig{
 		SludgeType:        "cooldown",
 		SludgePenalty:     1,
 		HireCost:          3000,
+		Enabled:           false,
 	},
 }

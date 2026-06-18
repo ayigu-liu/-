@@ -221,7 +221,8 @@ type Company struct {
     Quarter   int       // 当前季度
     Status    string    // active | bankrupt
     // P2.1 新增
-    TotalShares int     // 总股本（行业常量，创建时写入）
+    TotalShares int     // 总股本（创建时由玩家通过融资比例决定）
+    CEOShares   int64   // CEO持股数（创建时固定 10,000 股）
     CapCount    int     // 天花板单元数量
     Inventory   float64 // 物理淤积量（制造/能源库存，其余行业=0）
     SludgeLevel int     // 状态淤积等级（消费品牌冷却/医疗管线积压）
@@ -241,7 +242,7 @@ type CapBuildOrder struct {
 
 支持多季度连续扩产：每次扩产插入一行，季度结算时检查到期行，建造成本立即扣除。
 
-**CompanyQuarterly 新增快照字段**：`TotalShares`, `CapCount`, `Inventory`, `SludgeLevel`
+**CompanyQuarterly 新增快照字段**：`TotalShares`, `CEOShares`, `CapCount`, `Inventory`, `SludgeLevel`
 ——创建公司时自动写入 Q0 快照（`quarter=0`）作为图表起始点。
 
 **行业三维的 DB 表示**（设计文档 §七细化）：
@@ -253,19 +254,30 @@ type CapBuildOrder struct {
 
 天花板建造前置期在 v1 实现：`CapBuildOrder.ReadyQuarter` 记录完成季度。
 
+**融资创建流程**（本次新增）：
+- 玩家初始现金 **10,000 → 100,000**
+- 创建时玩家选择：发行总股本（1万-20万）、自身出资额
+- CEO 固定持股 **10,000 股**，出资比例 = 10,000 / 总股本（5%-100%）
+- 公司初始资金 = 自身出资 / 出资比例（含社会融资部分）
+- 初始产能（CapCount=1）+ 初始员工（StartingEmployees）免费提供
+- 行业控制开关 `IndustryConfig.Enabled`，当前全部 `false`（行业逐步开放）
+- IPO 暂不可用，公司股票不进入二级市场交易
+
 **API**（路径不使用 `/v2/` 前缀）：
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| POST | `/api/company/create` | JWT | 创建公司，自动生成 Symbol + Q0 快照 |
-| GET | `/api/company/state` | JWT | 返回公司完整状态（含季度历史 + 待建造队列） |
+| POST | `/api/company/create` | JWT | 创建公司（含融资参数），自动生成 Symbol + Q0 快照 + 扣玩家现金 |
+| GET | `/api/company/state` | JWT | 返回公司完整状态（含 ceo_shares/social_shares/own_ratio + 季度历史 + 待建造队列） |
 
 **路由拆分**：`internal/router/router.go` 独立维护路由注册，`cmd/server/main.go` 精简为引导逻辑。
 
 **前端**：
-- `types/index.ts`：`CompanyState` 扩展 8 字段，`QuarterlyReport` 扩展 4 字段
+- `types/index.ts`：`CompanyState` 扩展 `ceo_shares`/`social_shares`/`own_ratio`，`QuarterlyReport` 扩展 `ceo_shares`
 - `api/queries.ts`：API 路径去掉 `/v2/` 前缀
-- `pages/CompanyPage.tsx`：无公司→行业选择+创建表单，有公司→仪表盘+季度报表
+- `pages/CompanyPage.tsx`：无公司→融资创建表单（行业选择+总股本滑块+投资滑块+股权概览），有公司→仪表盘+季度报表
+- 所有行业标注"即将开放"，创建按钮在未开放行业时禁用提示
+- 响应式布局：窄屏 2 列、宽屏 3 列行业卡片，窄屏纵向滑块、宽屏并排滑块
 
 ### P2.2: AP 行动系统（待 Company 表加 AP/APCap 字段时实现）
 

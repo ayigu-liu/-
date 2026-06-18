@@ -421,7 +421,8 @@ AP 上限从 3 起，每年考核通过 +1 (最高 5)
 ```
 Company 表核心字段：
   CEOID, Symbol, Name, Industry, Cash, Employees, Quarter, Status
-  TotalShares  — 总股本（行业常量，创建时写入）
+  TotalShares  — 总股本（创建时由玩家通过融资比例决定）
+  CEOShares    — CEO 持股数（创建时固定 10,000 股）
   CapCount     — 天花板单元数量
   Inventory    — 物理淤积量（制造/能源库存，其余行业=0）
   SludgeLevel  — 状态淤积等级（消费品牌冷却/医疗管线积压）
@@ -431,8 +432,36 @@ CapBuildOrder 表（建造队列）：
   支持多季度连续扩产：每次扩产插入一行，季度结算时检查到期行
 
 CompanyQuarterly 表（季度快照）：
-  Revenue, Profit, Cash, Employees, TotalShares, CapCount, Inventory, SludgeLevel
+  Revenue, Profit, Cash, Employees, TotalShares, CEOShares, CapCount, Inventory, SludgeLevel
   创建公司时自动写入 Q0 快照 (quarter=0) 作为图表起始点
+```
+
+### 融资创建流程（2026-06-18 新增）
+
+```
+玩家初始现金: 100,000
+
+创建参数:
+  total_shares      — 发行总股本（1万-20万，滑动条）
+  player_investment — 玩家出资额（1,000-可用现金，滑动条）
+
+固定值:
+  ceo_shares = 10,000 股
+
+派生值:
+  own_ratio     = 10,000 / total_shares          (5%-100%)
+  company_cash  = player_investment / own_ratio   (含社会融资)
+  social_cash   = company_cash - player_investment
+
+行业控制:
+  IndustryConfig.Enabled — 行业开放开关，初始全部 false
+  逐步开放各行业，当前创建 API 对未开放行业返回"该行业暂未开放"
+
+初始资源:
+  CapCount = 1, Employees = StartingEmployees（免费提供，不扣现金）
+
+IPO:
+  公司创建后不可在二级市场交易，需达成 IPO 条件后方可上市
 ```
 
 ### 后端
@@ -467,8 +496,8 @@ jjs-web/src/
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| POST | `/api/company/create` | JWT | 创建公司（选择行业+起名） |
-| GET | `/api/company/state` | JWT | 公司完整状态（含季度历史） |
+| POST | `/api/company/create` | JWT | 创建公司（含融资参数：total_shares/player_investment），自动扣玩家现金 |
+| GET | `/api/company/state` | JWT | 公司完整状态（含 ceo_shares/social_shares/own_ratio + 季度历史） |
 
 *注：路径不使用 `/v2/` 前缀，重写即为新系统。*
 

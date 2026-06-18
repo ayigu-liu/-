@@ -35,3 +35,31 @@ func GetOrCreatePlayerState(playerID, nickname string) (*domain.PlayerState, err
 	}
 	return ps, nil
 }
+
+func DeductCash(playerID string, amount float64, note string) error {
+	if amount <= 0 {
+		return nil
+	}
+	ps, err := GetPlayerState(playerID)
+	if err != nil {
+		return err
+	}
+	if ps.Cash < amount {
+		return gorm.ErrRecordNotFound
+	}
+	ps.Cash -= amount
+	if err := DB.Save(ps).Error; err != nil {
+		return err
+	}
+	log := &domain.AssetLog{
+		PlayerID: playerID,
+		Type:     "company_invest",
+		Amount:   -amount,
+		Balance:  ps.Cash,
+		Note:     note,
+	}
+	if err := DB.Create(log).Error; err != nil {
+		return err
+	}
+	return nil
+}

@@ -57,6 +57,7 @@ type Company struct {
 	Quarter   int     `gorm:"not null;default:1"`
 	Status    string  `gorm:"type:varchar(20);not null;default:'active'"`
 	TotalShares int     `gorm:"not null;default:0"`
+	CEOShares   int64   `gorm:"not null;default:0"`
 	CapCount    int     `gorm:"not null;default:0"`
 	Inventory   float64 `gorm:"not null;default:0"`
 	SludgeLevel int     `gorm:"not null;default:0"`
@@ -79,6 +80,7 @@ type CompanyQuarterly struct {
 	Cash      float64   `gorm:"not null;default:0"`
 	Employees int       `gorm:"not null;default:0"`
 	TotalShares int     `gorm:"not null;default:0"`
+	CEOShares   int64   `gorm:"not null;default:0"`
 	CapCount    int     `gorm:"not null;default:0"`
 	Inventory   float64 `gorm:"not null;default:0"`
 	SludgeLevel int     `gorm:"not null;default:0"`

@@ -67,7 +67,7 @@ func mergeInto(dst, src *Config) {
 // --- 游戏常量（从 config.py 迁移） ---
 
 const (
-	StartingCash          = 10_000.0
+	StartingCash          = 100_000.0
 	PriceTickInterval     = 1500 * time.Millisecond
 	LeaderboardInterval   = 7500 * time.Millisecond
 	DBFlushInterval       = 30 * time.Second

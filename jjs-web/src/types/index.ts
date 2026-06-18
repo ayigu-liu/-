@@ -121,6 +121,9 @@ export interface CompanyState {
   employees: number
   status: string
   total_shares: number
+  ceo_shares: number
+  social_shares: number
+  own_ratio: number
   cap_count: number
   inventory: number
   sludge_level: number
@@ -154,6 +157,7 @@ export interface QuarterlyReport {
   cash: number
   employees: number
   total_shares: number
+  ceo_shares: number
   cap_count: number
   inventory: number
   sludge_level: number
