@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"log/slog"
+	"math"
 	"math/big"
 	"net/http"
 
@@ -64,6 +65,17 @@ var industryPrefix = map[string]string{
 	"energy":        "EN",
 	"consumer":      "XF",
 	"healthcare":    "YL",
+}
+
+func filteredQuarterly(all []domain.CompanyQuarterly) []domain.CompanyQuarterly {
+	currentQuarter := int(engine.GlobalQuarter.Load())
+	out := make([]domain.CompanyQuarterly, 0, len(all))
+	for _, q := range all {
+		if q.Quarter > 0 && q.Quarter < currentQuarter {
+			out = append(out, q)
+		}
+	}
+	return out
 }
 
 func generateSymbol(industry string) (string, error) {
@@ -168,11 +180,6 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		CapCount:    1,
 	}
 
-	// Set initial demand for manufacturing
-	if req.Industry == "manufacturing" {
-		company.Demand = engine.InitialDemand(company.ID, ind.StartingEmployees)
-	}
-
 	if err := store.CreateCompany(company); err != nil {
 		slog.Error("create company failed", "error", err)
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "创建失败"})
@@ -185,21 +192,61 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q0 := &domain.CompanyQuarterly{
-		CompanyID:   company.ID,
-		Quarter:     int(engine.GlobalQuarter.Load()),
-		Revenue:     0,
-		Profit:      0,
-		Cash:        int64(companyCash),
-		Employees:   ind.StartingEmployees,
-		TotalShares: req.TotalShares,
-		CEOShares:   ceoShares,
-		CapCount:    1,
-		Inventory:   0,
-		Demand:      company.Demand,
-	}
-	if err := store.CreateQuarterly(q0); err != nil {
-		slog.Error("create Q0 quarterly failed", "error", err)
+	if req.Industry == "manufacturing" {
+		company.Demand = engine.InitialDemand(company.ID, ind.StartingEmployees)
+
+		prosperity, err := store.LatestProsperity(req.Industry)
+		if err != nil {
+			prosperity = 1.0
+		}
+
+		currentQuarter := int(engine.GlobalQuarter.Load())
+		result := engine.SettleManufacturing(
+			company.ID,
+			company.Employees,
+			company.CapCount,
+			0,
+			company.Demand,
+			prosperity,
+			currentQuarter,
+			false,
+			ind.BaseMaintenanceRate,
+			ind.OperationalCostRate,
+		)
+
+		newCash := int64(math.Round(company.Cash)) + result.Profit
+
+		quarterly := &domain.CompanyQuarterly{
+			CompanyID:       company.ID,
+			Quarter:         currentQuarter,
+			Revenue:         result.Revenue,
+			Profit:          result.Profit,
+			Cash:            newCash,
+			LaborCost:       result.LaborCost,
+			BaseMaintenance: result.BaseMaintenance,
+			OperationalCost: result.OperationalCost,
+			WarehouseCost:   result.WarehouseCost,
+			TotalCost:       result.LaborCost + result.BaseMaintenance + result.OperationalCost + result.WarehouseCost,
+			SalesQty:        result.SalesQty,
+			ProdQty:         result.ProdQty,
+			Employees:       company.Employees,
+			TotalShares:     company.TotalShares,
+			CEOShares:       company.CEOShares,
+			CapCount:        company.CapCount,
+			Inventory:       result.Inventory,
+			Demand:          result.Demand,
+		}
+		if err := store.CreateQuarterly(quarterly); err != nil {
+			slog.Error("create initial quarterly failed", "error", err)
+		}
+
+		company.Cash = float64(newCash)
+		company.Inventory = result.Inventory
+		company.Demand = result.Demand
+		company.Quarter = currentQuarter
+		if err := store.UpdateCompany(company); err != nil {
+			slog.Error("update company after initial settlement failed", "error", err)
+		}
 	}
 
 	WriteJSON(w, http.StatusCreated, createCompanyResponse{
@@ -233,7 +280,7 @@ func (h *CompanyHandler) Quarterly(w http.ResponseWriter, r *http.Request) {
 		quarterly = []domain.CompanyQuarterly{}
 	}
 
-	WriteJSON(w, http.StatusOK, quarterly)
+	WriteJSON(w, http.StatusOK, filteredQuarterly(quarterly))
 }
 
 func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
@@ -260,12 +307,16 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		pendingCount = len(pendingOrders)
 	}
 
+	confirmedQuarter := int(engine.GlobalQuarter.Load()) - 1
+	filtered := filteredQuarterly(quarterly)
 	var revenue float64
 	var profit int64
-	if len(quarterly) > 0 {
-		last := quarterly[len(quarterly)-1]
-		revenue = last.Revenue
-		profit = last.Profit
+	for _, q := range filtered {
+		if q.Quarter == confirmedQuarter {
+			revenue = q.Revenue
+			profit = q.Profit
+			break
+		}
 	}
 
 	ownRatio := float64(10000) / float64(company.TotalShares)
@@ -291,7 +342,7 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		ActualOutput:    actualOutput,
 		Revenue:         int64(revenue),
 		Profit:          profit,
-		Quarterly:       quarterly,
+		Quarterly:       filtered,
 		PendingBuilds:   pendingCount,
 	})
 }

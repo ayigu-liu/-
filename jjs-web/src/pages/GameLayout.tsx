@@ -45,7 +45,7 @@ export function GameLayout() {
 
   return (
     <div className="flex flex-col h-screen">
-      <Header cash={playerInfo?.cash} nickname={playerInfo?.nickname} />
+      <Header cash={playerInfo?.cash} nickname={playerInfo?.nickname} globalQuarter={playerInfo?.global_quarter} />
       <main className="flex-1 overflow-y-auto p-3">
         <Outlet />
       </main>

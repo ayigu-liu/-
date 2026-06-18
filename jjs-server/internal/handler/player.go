@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"jjs-server/internal/engine"
 	"jjs-server/internal/middleware"
 	"jjs-server/internal/store"
 )
@@ -11,12 +12,13 @@ import (
 type PlayerHandler struct{}
 
 type playerInfoResponse struct {
-	PlayerID   string  `json:"player_id"`
-	Nickname   string  `json:"nickname"`
-	Email      string  `json:"email"`
-	Cash       float64 `json:"cash"`
-	FrozenCash float64 `json:"frozen_cash"`
-	MarginDebt float64 `json:"margin_debt"`
+	PlayerID      string  `json:"player_id"`
+	Nickname      string  `json:"nickname"`
+	Email         string  `json:"email"`
+	Cash          float64 `json:"cash"`
+	FrozenCash    float64 `json:"frozen_cash"`
+	MarginDebt    float64 `json:"margin_debt"`
+	GlobalQuarter int64   `json:"global_quarter"`
 }
 
 func (h *PlayerHandler) Info(w http.ResponseWriter, r *http.Request) {
@@ -40,11 +42,12 @@ func (h *PlayerHandler) Info(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, playerInfoResponse{
-		PlayerID:   ps.PlayerID,
-		Nickname:   user.Nickname,
-		Email:      user.Username,
-		Cash:       ps.Cash,
-		FrozenCash: ps.FrozenCash,
-		MarginDebt: ps.MarginDebt,
+		PlayerID:      ps.PlayerID,
+		Nickname:      user.Nickname,
+		Email:         user.Username,
+		Cash:          ps.Cash,
+		FrozenCash:    ps.FrozenCash,
+		MarginDebt:    ps.MarginDebt,
+		GlobalQuarter: engine.GlobalQuarter.Load(),
 	})
 }

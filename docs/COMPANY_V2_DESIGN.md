@@ -524,7 +524,7 @@ CapBuildOrder 表（建造队列）：
 
 CompanyQuarterly 表（季度快照）：
   Revenue, Profit, Cash, Employees, TotalShares, CEOShares, CapCount, Inventory, SludgeLevel
-  创建公司时自动写入 Q0 快照 (quarter=0) 作为图表起始点
+  创建公司时运行首次结算（SettleManufacturing），生成带实际计算数据的首季报表，非零值快照
 ```
 
 ### 融资创建流程（2026-06-18 新增）

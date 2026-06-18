@@ -5,9 +5,10 @@ import { useGameStore } from '@/stores/gameStore'
 interface HeaderProps {
   cash?: number | null
   nickname?: string | null
+  globalQuarter?: number
 }
 
-export function Header({ cash, nickname: playerNickname }: HeaderProps) {
+export function Header({ cash, nickname: playerNickname, globalQuarter }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -40,6 +41,11 @@ export function Header({ cash, nickname: playerNickname }: HeaderProps) {
         <span className="hidden sm:inline text-xs px-2.5 py-0.5 rounded-xl bg-bg-input text-text-secondary whitespace-nowrap">
           入市请谨慎 · 投资有风险
         </span>
+        {globalQuarter != null && globalQuarter > 0 && (
+          <span className="hidden sm:inline text-xs px-2.5 py-0.5 rounded-xl bg-bg-input text-text-secondary whitespace-nowrap">
+            第{Math.floor((globalQuarter - 1) / 4) + 1}年
+          </span>
+        )}
         {tickCountdown > 0 && (
           <span
             className={`text-sm font-semibold tabular-nums min-w-[28px] sm:min-w-[40px] ${

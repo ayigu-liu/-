@@ -79,6 +79,7 @@ export interface PlayerBasicInfo {
   cash: number
   frozen_cash: number
   margin_debt: number
+  global_quarter: number
 }
 
 export interface NewsItem {

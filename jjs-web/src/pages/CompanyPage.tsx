@@ -191,14 +191,19 @@ export function CompanyPage() {
             </div>
           </Panel>
         </div>
-      ) : (
+      ) : (() => {
+          const filtered = company.quarterly?.filter(q => q.quarter > 0) ?? []
+          const confirmedQ = filtered[filtered.length - 1] ?? null
+          const invDelta = confirmedQ ? confirmedQ.prod_qty - confirmedQ.sales_qty : 0
+
+          return (
         <div className="space-y-3">
           <div className="flex items-center gap-3 bg-bg-card rounded-lg p-4 border border-border">
             <span className="text-2xl">{INDUSTRY_META[company.industry]?.icon}</span>
             <div className="flex-1 min-w-0">
               <div className="text-lg font-bold text-text-primary truncate">{company.name}</div>
               <div className="text-xs text-text-muted">
-                {company.symbol} · {INDUSTRY_META[company.industry]?.name} · Q{company.quarter}
+                {company.symbol} · {INDUSTRY_META[company.industry]?.name}
               </div>
             </div>
             <div className="text-right shrink-0">
@@ -212,27 +217,35 @@ export function CompanyPage() {
               <div className="grid grid-cols-2 gap-2">
                 <MetricCard label="生产线" value={`${company.cap_count}条`} />
                 <MetricCard label="员工" value={`${company.employees}人`} />
-                <MetricCard label="库存" value={company.inventory > 0 ? `${company.inventory.toLocaleString()}件` : '—'} />
                 <MetricCard
-                  label="产能"
-                  value={`${company.actual_output.toLocaleString()} / ${company.capacity_ceiling.toLocaleString()}`}
-                  hint={`员工 ${company.employees}人 × 2000件/人 = ${company.actual_output.toLocaleString()}件实际产出\n${company.cap_count}条产线 × 10000件/条 = ${company.capacity_ceiling.toLocaleString()}件产能上限`}
+                  label="开工产能"
+                  value={`${company.actual_output.toLocaleString()}件/季`}
+                  hint={`员工 ${company.employees}人 × 2,000件/人 = ${company.actual_output.toLocaleString()}件`}
                 />
+                <MetricCard
+                  label="产能上限"
+                  value={`${company.capacity_ceiling.toLocaleString()}件/季`}
+                  hint={`${company.cap_count}条产线 × 10,000件/条 = ${company.capacity_ceiling.toLocaleString()}件`}
+                />
+                <MetricCard
+                  label="库存"
+                  value={company.inventory > 0 ? `${company.inventory.toLocaleString()}件` : '—'}
+                  hint={confirmedQ ? `上季产量 ${confirmedQ.prod_qty.toLocaleString()} - 销量 ${confirmedQ.sales_qty.toLocaleString()} = 库存${invDelta >= 0 ? '+' : ''}${invDelta.toLocaleString()}` : undefined}
+                />
+                {company.pending_builds > 0 ? (
+                  <div className="bg-bg-card rounded p-2.5 border border-border flex items-center">
+                    <span className="text-xs text-accent-gold">⏳ {company.pending_builds} 个产线建造中</span>
+                  </div>
+                ) : <div />}
               </div>
-              {company.pending_builds > 0 && (
-                <div className="mt-2 text-xs text-accent-gold">
-                  ⏳ {company.pending_builds} 个产能正在建造中
-                </div>
-              )}
             </div>
           </Panel>
 
           <Panel title="股权结构">
             <div className="p-3">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <MetricCard label="总股本" value={`${company.total_shares.toLocaleString()}股`} />
-                <MetricCard label="CEO持股" value={`${company.ceo_shares.toLocaleString()}股`} />
-                <MetricCard label="持股比例" value={`${(company.own_ratio * 100).toFixed(1)}%`} />
+                <MetricCard label="CEO持股" value={`${company.ceo_shares.toLocaleString()}股 (${(company.own_ratio * 100).toFixed(1)}%)`} />
               </div>
             </div>
           </Panel>
@@ -242,18 +255,7 @@ export function CompanyPage() {
               <div className="grid grid-cols-2 gap-2">
                 <MetricCard label="上季营收" value={`¥${company.revenue.toLocaleString()}`} />
                 <MetricCard label="上季利润" value={`¥${company.profit.toLocaleString()}`} />
-                {(() => {
-                  const lastQ = company.quarterly?.filter(q => q.quarter > 0).slice(-1)[0]
-                  return lastQ ? (
-                    <>
-                      <MetricCard label="上季总成本" value={`¥${lastQ.total_cost.toLocaleString()}`} />
-                      <MetricCard
-                        label="成本率"
-                        value={`${lastQ.revenue > 0 ? (lastQ.total_cost / lastQ.revenue * 100).toFixed(1) : '0'}%`}
-                      />
-                    </>
-                  ) : null
-                })()}
+                <MetricCard label="上季总成本" value={confirmedQ ? `¥${confirmedQ.total_cost.toLocaleString()}` : '—'} />
               </div>
               <Link
                 to="/game/company/quarterly"
@@ -270,7 +272,7 @@ export function CompanyPage() {
             </div>
           )}
         </div>
-      )}
+          )})()}
     </div>
   )
 }

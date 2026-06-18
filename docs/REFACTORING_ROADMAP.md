@@ -274,7 +274,9 @@ Profit           = Revenue - TotalCost
 ```
 各行业费率（制造例：Base=1000, Op=2000，旧值 Active=3000/Idle=1000 → Base+Op 等价总和无变更）。
 
-**季度结算**：当前仅制造行业启用——非制造业 `settleCompanyBaseline` 直接 `return nil`，待具体行业设计后实现。`formatPeriod` 已删除，季度格式化由前端 `Math.floor((q-1)/4)+1` + `(q-1)%4+1` 计算。
+**季度结算**：当前仅制造行业启用——非制造业 `settleCompanyBaseline` 直接 `return nil`，待具体行业设计后实现。`formatPeriod` 已删除，季度格式化由前端 `Math.floor((q-1)/4)+1` + `(q-1)%4+1` 计算。创建公司时不再生成 Q0 零值快照，改为立即运行首次 `SettleManufacturing` 结算，生成带实际计算数据的首季报表。
+
+**预生成过滤**：季度结算在每个 tick 开始时运行，预生成当前季度（`quarter == GlobalQuarter`）的 CompanyQuarterly。该预生成记录仅为后续 CEO 决策提供 baseline，尚未公开确认。`State` 和 `Quarterly` 接口均过滤掉 `quarter >= GlobalQuarter` 的记录，仅返回已确认的历史季度（`quarter < GlobalQuarter`）。`State` 中的 `revenue`/`profit` 取自 `quarter == GlobalQuarter-1` 的已确认季度。
 
 **启动恢复**：`cmd/server/main.go` 启动时调用 `engine.RestoreOrSeedGlobalQuarter()`——DB 无景气度数据则种入所有行业 Q1=1.0 且 `GlobalQuarter=1`；有数据则恢复到最大季度。`GlobalQuarter` 不再硬编码为 1，重启后季度号连续。
 
@@ -282,15 +284,16 @@ Profit           = Revenue - TotalCost
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| POST | `/api/company/create` | JWT | 创建公司，初始季度 = 当前 `GlobalQuarter` 值 |
-| GET | `/api/company/state` | JWT | 返回公司完整状态（含季度历史 + 待建造队列） |
-| GET | `/api/company/quarterly` | JWT | 返回当前用户公司全部季度报表 |
+| POST | `/api/company/create` | JWT | 创建公司，立即运行首次制造结算（SettleManufacturing），产出首季 CompanyQuarterly + 更新 Company 状态 |
+| GET | `/api/company/state` | JWT | 返回公司完整状态（含已确认季度历史 + 待建造队列），`revenue`/`profit` 取自 `GlobalQuarter-1` |
+| GET | `/api/company/quarterly` | JWT | 返回已确认季度报表（过滤预生成记录，仅 `quarter < GlobalQuarter`） |
+| GET | `/api/player/info` | JWT | 返回玩家信息 + `global_quarter` 全局季度数 |
 
 **前端**：
-- `pages/QuarterlyPage.tsx`：独立历史报表页（路由 `/game/company/quarterly`），列表展示 季度/营收/利润/总成本/利润率/期末现金，点击行弹出 Modal 详情（成本组成 + 运营指标 + 股权数据）
-- `pages/CompanyPage.tsx`：财务表现面板新增上季总成本/成本率 + 「查看历史报表 →」按钮，底部季度表已移除
-- `types/index.ts`：`QuarterlyReport` 扩大为含全部成本字段
-- 响应式布局：窄屏 2 列、宽屏 3 列行业卡片，窄屏纵向滑块、宽屏并排滑块
+- `Header.tsx`：展示 `第Y年`（由 `global_quarter` 换算），窄屏隐藏
+- `pages/CompanyPage.tsx`：公司仪表盘——头部不再展示 Q{n}；经营指标产能拆为「开工产能」和「产能上限」两格独立展示，库存格展示上季变更量（±件）；股权结构合并为 2 列（总股本 + CEO持股含占比%）；财务表现移除成本率
+- `pages/QuarterlyPage.tsx`：独立历史报表页（路由 `/game/company/quarterly`），表格列 季度/营收/利润/总成本/期末现金（移除利润率列）；点击行弹出 Modal 详情——财务摘要移除利润率/成本率，运营指标新增库存变更/开工产能/产能上限，股权数据合并持股比例到 CEO持股
+- `types/index.ts`：`PlayerBasicInfo` 新增 `global_quarter` 字段
 
 ### P2.2: AP 行动系统（待 Company 表加 AP/APCap 字段时实现）
 

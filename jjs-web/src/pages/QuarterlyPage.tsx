@@ -57,13 +57,11 @@ export function QuarterlyPage() {
                   <th className="p-2.5 text-right">营收</th>
                   <th className="p-2.5 text-right">利润</th>
                   <th className="p-2.5 text-right">总成本</th>
-                  <th className="p-2.5 text-right">利润率</th>
                   <th className="p-2.5 text-right">期末现金</th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((q) => {
-                  const profitMargin = q.revenue > 0 ? (q.profit / q.revenue * 100) : 0
                   return (
                     <tr
                       key={q.ID}
@@ -76,9 +74,6 @@ export function QuarterlyPage() {
                         ¥{q.profit.toLocaleString()}
                       </td>
                       <td className="p-2.5 text-right text-text-primary">¥{q.total_cost.toLocaleString()}</td>
-                      <td className={`p-2.5 text-right ${profitMargin >= 0 ? 'text-up' : 'text-down'}`}>
-                        {profitMargin >= 0 ? '+' : ''}{profitMargin.toFixed(1)}%
-                      </td>
                       <td className="p-2.5 text-right text-text-primary">¥{q.cash.toLocaleString()}</td>
                     </tr>
                   )
@@ -117,13 +112,7 @@ export function QuarterlyPage() {
                   <DetailItem label="营收" value={`¥${selected.revenue.toLocaleString()}`} />
                   <DetailItem label="利润" value={`¥${selected.profit.toLocaleString()}`} positive={selected.profit >= 0} />
                   <DetailItem label="总成本" value={`¥${selected.total_cost.toLocaleString()}`} />
-                  <DetailItem
-                    label="利润率"
-                    value={`${selected.revenue > 0 ? '+' : ''}${selected.revenue > 0 ? (selected.profit / selected.revenue * 100).toFixed(1) : '0'}%`}
-                    positive={selected.profit >= 0}
-                  />
                   <DetailItem label="期末现金" value={`¥${selected.cash.toLocaleString()}`} />
-                  <DetailItem label="成本率" value={`${selected.revenue > 0 ? (selected.total_cost / selected.revenue * 100).toFixed(1) : '0'}%`} />
                 </div>
               </section>
 
@@ -142,9 +131,12 @@ export function QuarterlyPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <DetailItem label="销量" value={`${selected.sales_qty.toLocaleString()}件`} />
                   <DetailItem label="产量" value={`${selected.prod_qty.toLocaleString()}件`} />
+                  <DetailItem label="库存变更" value={`${selected.prod_qty - selected.sales_qty >= 0 ? '+' : ''}${(selected.prod_qty - selected.sales_qty).toLocaleString()}件`} positive={selected.prod_qty - selected.sales_qty >= 0} />
+                  <DetailItem label="开工产能" value={`${Math.min(selected.employees * 2000, selected.cap_count * 10000).toLocaleString()}件/季`} />
+                  <DetailItem label="产能上限" value={`${(selected.cap_count * 10000).toLocaleString()}件/季`} />
+                  <DetailItem label="库存" value={selected.inventory > 0 ? `${selected.inventory.toLocaleString()}件` : '—'} />
                   <DetailItem label="员工" value={`${selected.employees}人`} />
                   <DetailItem label="产线" value={`${selected.cap_count}条`} />
-                  <DetailItem label="库存" value={selected.inventory > 0 ? `${selected.inventory.toLocaleString()}件` : '—'} />
                 </div>
               </section>
 
@@ -152,8 +144,7 @@ export function QuarterlyPage() {
                 <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">股权数据</div>
                 <div className="grid grid-cols-2 gap-2">
                   <DetailItem label="总股本" value={`${selected.total_shares.toLocaleString()}股`} />
-                  <DetailItem label="CEO持股" value={`${selected.ceo_shares.toLocaleString()}股`} />
-                  <DetailItem label="持股比例" value={`${(selected.ceo_shares / selected.total_shares * 100).toFixed(0)}%`} />
+                  <DetailItem label="CEO持股" value={`${selected.ceo_shares.toLocaleString()}股 (${(selected.ceo_shares / selected.total_shares * 100).toFixed(0)}%)`} />
                 </div>
               </section>
             </div>
