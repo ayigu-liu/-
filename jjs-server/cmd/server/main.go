@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"jjs-server/internal/config"
+	"jjs-server/internal/engine"
 	"jjs-server/internal/handler"
 	"jjs-server/internal/router"
 	"jjs-server/internal/store"
@@ -40,6 +41,10 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
+
+	ticker := engine.NewTicker()
+	ticker.Start()
+	defer ticker.Stop()
 
 	go func() {
 		slog.Info("server starting", "port", config.AppConfig.Port)

@@ -4,6 +4,20 @@ import (
 	"jjs-server/internal/domain"
 )
 
+func GetActiveCompanies() ([]domain.Company, error) {
+	var companies []domain.Company
+	err := DB.Where("status = ?", "active").Find(&companies).Error
+	return companies, err
+}
+
+func QuarterlyExists(companyID uint, quarter int) (bool, error) {
+	var count int64
+	err := DB.Model(&domain.CompanyQuarterly{}).
+		Where("company_id = ? AND quarter = ?", companyID, quarter).
+		Count(&count).Error
+	return count > 0, err
+}
+
 func CreateCompany(c *domain.Company) error {
 	return DB.Create(c).Error
 }

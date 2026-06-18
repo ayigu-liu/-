@@ -34,28 +34,29 @@ type createCompanyResponse struct {
 	OwnRatio    float64 `json:"own_ratio"`
 }
 
-type companyStateResponse struct {
-	ID              uint    `json:"id"`
-	Symbol          string  `json:"symbol"`
-	Name            string  `json:"name"`
-	Industry        string  `json:"industry"`
-	CEOID           string  `json:"ceo_id"`
-	Quarter         int     `json:"quarter"`
-	Cash            float64 `json:"cash"`
-	Employees       int     `json:"employees"`
-	Status          string  `json:"status"`
-	TotalShares     int     `json:"total_shares"`
-	CEOShares       int64   `json:"ceo_shares"`
-	SocialShares    int64   `json:"social_shares"`
-	OwnRatio        float64 `json:"own_ratio"`
-	CapCount        int     `json:"cap_count"`
-	Inventory       float64 `json:"inventory"`
-	SludgeLevel     int     `json:"sludge_level"`
-	Revenue         float64 `json:"revenue"`
-	Profit          float64 `json:"profit"`
-	Quarterly       []domain.CompanyQuarterly `json:"quarterly"`
-	PendingBuilds   int     `json:"pending_builds"`
-}
+	type companyStateResponse struct {
+		ID              uint    `json:"id"`
+		Symbol          string  `json:"symbol"`
+		Name            string  `json:"name"`
+		Industry        string  `json:"industry"`
+		CEOID           string  `json:"ceo_id"`
+		Quarter         int     `json:"quarter"`
+		Cash            float64 `json:"cash"`
+		Employees       int     `json:"employees"`
+		Status          string  `json:"status"`
+		TotalShares     int     `json:"total_shares"`
+		CEOShares       int64   `json:"ceo_shares"`
+		SocialShares    int64   `json:"social_shares"`
+		OwnRatio        float64 `json:"own_ratio"`
+		CapCount        int     `json:"cap_count"`
+		Inventory       float64 `json:"inventory"`
+		Demand          float64 `json:"demand"`
+		SludgeLevel     int     `json:"sludge_level"`
+		Revenue         float64 `json:"revenue"`
+		Profit          float64 `json:"profit"`
+		Quarterly       []domain.CompanyQuarterly `json:"quarterly"`
+		PendingBuilds   int     `json:"pending_builds"`
+	}
 
 var industryPrefix = map[string]string{
 	"tech":          "TK",
@@ -168,6 +169,11 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		CapCount:    1,
 	}
 
+	// Set initial demand for manufacturing
+	if req.Industry == "manufacturing" {
+		company.Demand = engine.InitialDemand(company.ID, ind.StartingEmployees)
+	}
+
 	if err := store.CreateCompany(company); err != nil {
 		slog.Error("create company failed", "error", err)
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "创建失败"})
@@ -193,6 +199,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		CapCount:    1,
 		Inventory:   0,
 		SludgeLevel: 0,
+		Demand:      company.Demand,
 	}
 	if err := store.CreateQuarterly(q0); err != nil {
 		slog.Error("create Q0 quarterly failed", "error", err)
@@ -263,6 +270,7 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		OwnRatio:      ownRatio,
 		CapCount:      company.CapCount,
 		Inventory:     company.Inventory,
+		Demand:        company.Demand,
 		SludgeLevel:   company.SludgeLevel,
 		Revenue:       revenue,
 		Profit:        profit,

@@ -61,6 +61,7 @@ type Company struct {
 	CapCount    int     `gorm:"not null;default:0"`
 	Inventory   float64 `gorm:"not null;default:0"`
 	SludgeLevel int     `gorm:"not null;default:0"`
+	Demand      float64 `gorm:"not null;default:0"`
 }
 
 type CapBuildOrder struct {
@@ -83,8 +84,16 @@ type CompanyQuarterly struct {
 	CEOShares   int64   `gorm:"not null;default:0"`
 	CapCount    int     `gorm:"not null;default:0"`
 	Inventory   float64 `gorm:"not null;default:0"`
-	SludgeLevel int     `gorm:"not null;default:0"`
+	SludgeLevel int       `gorm:"not null;default:0"`
+	Demand      float64   `gorm:"not null;default:0"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"`
+}
+type IndustryProsperity struct {
+	ID         uint      `gorm:"primaryKey;autoIncrement"`
+	Industry   string    `gorm:"type:varchar(20);not null;uniqueIndex:uq_ind_q"`
+	Quarter    int       `gorm:"not null;uniqueIndex:uq_ind_q"`
+	Prosperity float64   `gorm:"not null"`
+	CreatedAt  time.Time `gorm:"autoCreateTime"`
 }
 
 type AssetLog struct {
@@ -103,4 +112,4 @@ func (CompanyQuarterly) TableName() string    { return "company_quarterly" }
 func (PlayerState) TableName() string         { return "player_state" }
 func (Holding) TableName() string             { return "holdings" }
 func (Transaction) TableName() string         { return "transactions" }
-func (AssetLog) TableName() string            { return "asset_logs" }
+func (IndustryProsperity) TableName() string    { return "industry_prosperity" }

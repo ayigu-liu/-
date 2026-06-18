@@ -15,5 +15,6 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )

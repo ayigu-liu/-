@@ -37,6 +37,7 @@ func Init() error {
 		&domain.Company{},
 		&domain.CapBuildOrder{},
 		&domain.CompanyQuarterly{},
+		&domain.IndustryProsperity{},
 		&domain.AssetLog{},
 	); err != nil {
 		return err

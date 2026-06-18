@@ -126,6 +126,7 @@ export interface CompanyState {
   own_ratio: number
   cap_count: number
   inventory: number
+  demand: number
   sludge_level: number
   revenue: number
   profit: number
