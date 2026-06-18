@@ -48,13 +48,25 @@ type Holding struct {
 
 type Company struct {
 	gorm.Model
-	CEOID     string `gorm:"type:varchar(12);index;not null"`
-	Name      string `gorm:"type:varchar(50);not null"`
-	Industry  string `gorm:"type:varchar(20);not null;index:idx_company_industry"`
+	CEOID     string  `gorm:"type:varchar(12);index;not null"`
+	Symbol    string  `gorm:"type:varchar(10);uniqueIndex;not null"`
+	Name      string  `gorm:"type:varchar(50);not null"`
+	Industry  string  `gorm:"type:varchar(20);not null;index:idx_company_industry"`
 	Cash      float64 `gorm:"not null;default:0"`
-	Employees int    `gorm:"not null;default:0"`
-	Quarter   int    `gorm:"not null;default:1"`
-	Status    string `gorm:"type:varchar(20);not null;default:'active'"`
+	Employees int     `gorm:"not null;default:0"`
+	Quarter   int     `gorm:"not null;default:1"`
+	Status    string  `gorm:"type:varchar(20);not null;default:'active'"`
+	TotalShares int     `gorm:"not null;default:0"`
+	CapCount    int     `gorm:"not null;default:0"`
+	Inventory   float64 `gorm:"not null;default:0"`
+	SludgeLevel int     `gorm:"not null;default:0"`
+}
+
+type CapBuildOrder struct {
+	gorm.Model
+	CompanyID    uint `gorm:"index;not null"`
+	ReadyQuarter int  `gorm:"not null"`
+	Completed    bool `gorm:"not null;default:false"`
 }
 
 type CompanyQuarterly struct {
@@ -66,7 +78,11 @@ type CompanyQuarterly struct {
 	Profit    float64   `gorm:"not null;default:0"`
 	Cash      float64   `gorm:"not null;default:0"`
 	Employees int       `gorm:"not null;default:0"`
-	CreatedAt time.Time `gorm:"autoCreateTime"`
+	TotalShares int     `gorm:"not null;default:0"`
+	CapCount    int     `gorm:"not null;default:0"`
+	Inventory   float64 `gorm:"not null;default:0"`
+	SludgeLevel int     `gorm:"not null;default:0"`
+	CreatedAt   time.Time `gorm:"autoCreateTime"`
 }
 
 type AssetLog struct {
@@ -79,9 +95,10 @@ type AssetLog struct {
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
-func (Company) TableName() string         { return "companies" }
-func (CompanyQuarterly) TableName() string { return "company_quarterly" }
-func (PlayerState) TableName() string      { return "player_state" }
-func (Holding) TableName() string          { return "holdings" }
-func (Transaction) TableName() string      { return "transactions" }
-func (AssetLog) TableName() string         { return "asset_logs" }
+func (Company) TableName() string           { return "companies" }
+func (CapBuildOrder) TableName() string      { return "cap_build_orders" }
+func (CompanyQuarterly) TableName() string    { return "company_quarterly" }
+func (PlayerState) TableName() string         { return "player_state" }
+func (Holding) TableName() string             { return "holdings" }
+func (Transaction) TableName() string         { return "transactions" }
+func (AssetLog) TableName() string            { return "asset_logs" }

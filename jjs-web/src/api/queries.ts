@@ -68,21 +68,21 @@ export function useKlineData(symbol: string | null, period: KlinePeriod) {
 export function useCompanyState() {
   return useQuery<CompanyState>({
     queryKey: companyKeys.state,
-    queryFn: () => api.get('/company/v2/state'),
+    queryFn: () => api.get('/company/state'),
   })
 }
 
 export function useQuarterlyReports() {
   return useQuery<QuarterlyReport[]>({
     queryKey: companyKeys.quarterly,
-    queryFn: () => api.get('/company/v2/quarterly'),
+    queryFn: () => api.get('/company/quarterly'),
   })
 }
 
 export function useBoardState() {
   return useQuery<{ satisfaction: number }>({
     queryKey: companyKeys.board,
-    queryFn: () => api.get('/company/v2/board'),
+    queryFn: () => api.get('/company/board'),
   })
 }
 

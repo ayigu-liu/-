@@ -9,12 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	chimw "github.com/go-chi/chi/v5/middleware"
-
 	"jjs-server/internal/config"
 	"jjs-server/internal/handler"
-	"jjs-server/internal/middleware"
+	"jjs-server/internal/router"
 	"jjs-server/internal/store"
 )
 
@@ -31,32 +28,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	r := chi.NewRouter()
-	r.Use(chimw.Logger)
-	r.Use(chimw.Recoverer)
-	r.Use(middleware.CORS)
-
 	authH := &handler.AuthHandler{}
 	playerH := &handler.PlayerHandler{}
-
-	r.Route("/api", func(r chi.Router) {
-		r.Get("/health", handler.Health)
-
-		r.Route("/auth", func(r chi.Router) {
-			r.Post("/register", authH.Register)
-			r.Post("/login", authH.Login)
-			r.With(middleware.OptionalJWT).Get("/me", authH.Me)
-		})
-
-		r.With(middleware.JWT).Get("/player/info", playerH.Info)
-	})
-
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.StaticFileServer)
-		r.NotFound(func(w http.ResponseWriter, req *http.Request) {
-			handler.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
-		})
-	})
+	companyH := &handler.CompanyHandler{}
+	r := router.New(authH, playerH, companyH)
 
 	srv := &http.Server{
 		Addr:         ":" + config.AppConfig.Port,

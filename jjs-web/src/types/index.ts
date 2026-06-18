@@ -111,15 +111,23 @@ export interface PendingOrder {
 }
 
 export interface CompanyState {
-  id: string
+  id: number
+  symbol: string
   name: string
   industry: Industry
-  ceo: string
+  ceo_id: string
   quarter: number
   cash: number
+  employees: number
+  status: string
+  total_shares: number
+  cap_count: number
+  inventory: number
+  sludge_level: number
   revenue: number
   profit: number
-  employees: number
+  quarterly: QuarterlyReport[]
+  pending_builds: number
 }
 
 export type Industry = 'tech' | 'finance' | 'manufacturing' | 'energy' | 'consumer' | 'healthcare'
@@ -137,11 +145,19 @@ export interface IndustryInfo {
 }
 
 export interface QuarterlyReport {
+  ID: number
+  CompanyID: number
   quarter: number
+  period: string
   revenue: number
   profit: number
   cash: number
   employees: number
+  total_shares: number
+  cap_count: number
+  inventory: number
+  sludge_level: number
+  CreatedAt: string
 }
 
 export interface RandomEvent {
