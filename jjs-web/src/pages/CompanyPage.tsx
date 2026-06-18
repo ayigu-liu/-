@@ -7,7 +7,7 @@ import { Panel } from '@/components/Panel'
 const INDUSTRY_META: Record<string, { name: string; icon: string; desc: string; enabled: boolean }> = {
   tech:          { name: '科技',     icon: '💻', desc: '技术驱动，重研发投入，设备迭代快', enabled: false },
   finance:       { name: '金融',     icon: '🏦', desc: '资本运作，高杠杆高回报，牌照壁垒高', enabled: false },
-  manufacturing: { name: '制造',     icon: '🏭', desc: '产能为王，规模效应，注意库存积压', enabled: false },
+  manufacturing: { name: '制造',     icon: '🏭', desc: '产能为王，规模效应，注意库存积压', enabled: true },
   energy:        { name: '能源',     icon: '🛢️', desc: '资源开采，矿藏会枯竭，需持续勘探', enabled: false },
   consumer:      { name: '消费',     icon: '🛍️', desc: '品牌驱动，营销为王，热度就是生命', enabled: false },
   healthcare:    { name: '医疗',     icon: '💊', desc: '研发周期长，专利护城河，慢热暴利', enabled: false },

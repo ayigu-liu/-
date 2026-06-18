@@ -113,7 +113,7 @@ var Industries = map[string]IndustryConfig{
 		ProsperityRegression: 0.15,
 		PriceElasticity:      0.6,
 		IndividualVolatility: 0.10,
-		Enabled:              false,
+		Enabled:              true,
 	},
 	"energy": {
 		ID:                   "energy",
