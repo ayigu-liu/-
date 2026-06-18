@@ -27,7 +27,7 @@ type createCompanyResponse struct {
 	Symbol    string  `json:"symbol"`
 	Name      string  `json:"name"`
 	Industry  string  `json:"industry"`
-	Cash      float64 `json:"cash"`
+	Cash      int64 `json:"cash"`
 	Employees int     `json:"employees"`
 	TotalShares int   `json:"total_shares"`
 	CEOShares   int64 `json:"ceo_shares"`
@@ -41,19 +41,18 @@ type createCompanyResponse struct {
 		Industry        string  `json:"industry"`
 		CEOID           string  `json:"ceo_id"`
 		Quarter         int     `json:"quarter"`
-		Cash            float64 `json:"cash"`
+		Cash            int64   `json:"cash"`
 		Employees       int     `json:"employees"`
 		Status          string  `json:"status"`
 		TotalShares     int     `json:"total_shares"`
 		CEOShares       int64   `json:"ceo_shares"`
-		SocialShares    int64   `json:"social_shares"`
 		OwnRatio        float64 `json:"own_ratio"`
 		CapCount        int     `json:"cap_count"`
-		Inventory       float64 `json:"inventory"`
-		Demand          float64 `json:"demand"`
-		SludgeLevel     int     `json:"sludge_level"`
-		Revenue         float64 `json:"revenue"`
-		Profit          float64 `json:"profit"`
+		Inventory       int64   `json:"inventory"`
+		CapacityCeiling int64   `json:"capacity_ceiling"`
+		ActualOutput    int64   `json:"actual_output"`
+		Revenue         int64   `json:"revenue"`
+		Profit          int64   `json:"profit"`
 		Quarterly       []domain.CompanyQuarterly `json:"quarterly"`
 		PendingBuilds   int     `json:"pending_builds"`
 	}
@@ -198,7 +197,6 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		CEOShares:   ceoShares,
 		CapCount:    1,
 		Inventory:   0,
-		SludgeLevel: 0,
 		Demand:      company.Demand,
 	}
 	if err := store.CreateQuarterly(q0); err != nil {
@@ -210,7 +208,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Symbol:      company.Symbol,
 		Name:        company.Name,
 		Industry:    company.Industry,
-		Cash:        company.Cash,
+		Cash:        int64(company.Cash),
 		Employees:   company.Employees,
 		TotalShares: company.TotalShares,
 		CEOShares:   company.CEOShares,
@@ -252,29 +250,29 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ownRatio := float64(10000) / float64(company.TotalShares)
-	socialShares := int64(company.TotalShares) - company.CEOShares
+	capacityCeiling := engine.CapacityCeiling(company.Industry, company.CapCount)
+	actualOutput := engine.ActualOutput(company.Industry, company.Employees)
 
 	WriteJSON(w, http.StatusOK, companyStateResponse{
-		ID:            company.ID,
-		Symbol:        company.Symbol,
-		Name:          company.Name,
-		Industry:      company.Industry,
-		CEOID:         company.CEOID,
-		Quarter:       company.Quarter,
-		Cash:          company.Cash,
-		Employees:     company.Employees,
-		Status:        company.Status,
-		TotalShares:   company.TotalShares,
-		CEOShares:     company.CEOShares,
-		SocialShares:  socialShares,
-		OwnRatio:      ownRatio,
-		CapCount:      company.CapCount,
-		Inventory:     company.Inventory,
-		Demand:        company.Demand,
-		SludgeLevel:   company.SludgeLevel,
-		Revenue:       revenue,
-		Profit:        profit,
-		Quarterly:     quarterly,
-		PendingBuilds: pendingCount,
+		ID:              company.ID,
+		Symbol:          company.Symbol,
+		Name:            company.Name,
+		Industry:        company.Industry,
+		CEOID:           company.CEOID,
+		Quarter:         company.Quarter,
+		Cash:            int64(company.Cash),
+		Employees:       company.Employees,
+		Status:          company.Status,
+		TotalShares:     company.TotalShares,
+		CEOShares:       company.CEOShares,
+		OwnRatio:        ownRatio,
+		CapCount:        company.CapCount,
+		Inventory:       company.Inventory,
+		CapacityCeiling: capacityCeiling,
+		ActualOutput:    actualOutput,
+		Revenue:         int64(revenue),
+		Profit:          int64(profit),
+		Quarterly:       quarterly,
+		PendingBuilds:   pendingCount,
 	})
 }

@@ -59,8 +59,7 @@ type Company struct {
 	TotalShares int     `gorm:"not null;default:0"`
 	CEOShares   int64   `gorm:"not null;default:0"`
 	CapCount    int     `gorm:"not null;default:0"`
-	Inventory   float64 `gorm:"not null;default:0"`
-	SludgeLevel int     `gorm:"not null;default:0"`
+	Inventory   int64 `gorm:"not null;default:0"`
 	Demand      float64 `gorm:"not null;default:0"`
 }
 
@@ -83,8 +82,7 @@ type CompanyQuarterly struct {
 	TotalShares int     `gorm:"not null;default:0"`
 	CEOShares   int64   `gorm:"not null;default:0"`
 	CapCount    int     `gorm:"not null;default:0"`
-	Inventory   float64 `gorm:"not null;default:0"`
-	SludgeLevel int       `gorm:"not null;default:0"`
+	Inventory   int64 `gorm:"not null;default:0"`
 	Demand      float64   `gorm:"not null;default:0"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"`
 }

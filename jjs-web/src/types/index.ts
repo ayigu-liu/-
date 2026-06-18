@@ -122,12 +122,11 @@ export interface CompanyState {
   status: string
   total_shares: number
   ceo_shares: number
-  social_shares: number
   own_ratio: number
   cap_count: number
   inventory: number
-  demand: number
-  sludge_level: number
+  capacity_ceiling: number
+  actual_output: number
   revenue: number
   profit: number
   quarterly: QuarterlyReport[]
@@ -161,7 +160,6 @@ export interface QuarterlyReport {
   ceo_shares: number
   cap_count: number
   inventory: number
-  sludge_level: number
   CreatedAt: string
 }
 

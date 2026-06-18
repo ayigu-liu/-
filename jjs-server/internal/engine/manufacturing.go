@@ -15,6 +15,20 @@ const (
 	mfgMarketingMax      = 3500  // 营销效果上限 (件)
 )
 
+func CapacityCeiling(industry string, capCount int) int64 {
+	if industry == "manufacturing" {
+		return int64(capCount) * mfgLineCeiling
+	}
+	return 0
+}
+
+func ActualOutput(industry string, employees int) int64 {
+	if industry == "manufacturing" {
+		return int64(employees) * mfgUnitOutput
+	}
+	return 0
+}
+
 func ManufacturingRNG(companyID uint, quarter int, aspect string) *rand.Rand {
 	aspects := map[string]int64{
 		"volatility":  1,
@@ -30,7 +44,7 @@ type ManufacturingResult struct {
 	SalesQty      float64 // 销售量 (件)
 	Demand        float64 // 当季需求 (件)
 	Revenue       float64 // 营收
-	Inventory     float64 // 季末库存
+	Inventory     int64   // 季末库存
 	ActiveLines   int     // 使用中产线
 	IdleLines     int     // 闲置产线
 	Maintenance   float64 // 维护费
@@ -51,7 +65,7 @@ func SettleManufacturing(
 	companyID uint,
 	employees int,
 	capCount int,
-	prevInventory float64,
+	prevInventory int64,
 	prevDemand float64,
 	prosperity float64,
 	quarter int,
@@ -86,13 +100,13 @@ func SettleManufacturing(
 	idleLines := capCount - activeLines
 
 	// 销售量: 先清库存再售新品
-	salesQty := math.Min(prodQty+prevInventory, demand)
+	salesQty := math.Min(prodQty+float64(prevInventory), demand)
 
 	// 营收
 	revenue := math.Round(salesQty*sellingPrice*100) / 100
 
 	// 季末库存
-	inventory := prevInventory + prodQty - salesQty
+	inventory := float64(prevInventory) + prodQty - salesQty
 	if inventory < 0 {
 		inventory = 0
 	}
@@ -115,7 +129,7 @@ func SettleManufacturing(
 		SalesQty:      math.Round(salesQty*100) / 100,
 		Demand:        demand,
 		Revenue:       revenue,
-		Inventory:     inventory,
+		Inventory:     int64(math.Round(inventory)),
 		ActiveLines:   activeLines,
 		IdleLines:     idleLines,
 		Maintenance:   math.Round(maintenance*100) / 100,

@@ -43,6 +43,13 @@ func Init() error {
 		return err
 	}
 
+	if DB.Migrator().HasColumn(&domain.Company{}, "sludge_level") {
+		DB.Migrator().DropColumn(&domain.Company{}, "sludge_level")
+	}
+	if DB.Migrator().HasColumn(&domain.CompanyQuarterly{}, "sludge_level") {
+		DB.Migrator().DropColumn(&domain.CompanyQuarterly{}, "sludge_level")
+	}
+
 	slog.Info("database initialized and migrated")
 	return nil
 }

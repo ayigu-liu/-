@@ -32,8 +32,7 @@ export function CompanyPage() {
   const playerCash = playerInfo?.cash ?? 100000
 
   const ownRatio = useMemo(() => CEO_SHARES / totalShares, [totalShares])
-  const companyCash = useMemo(() => playerInvestment / ownRatio, [playerInvestment, ownRatio])
-  const socialShares = useMemo(() => totalShares - CEO_SHARES, [totalShares])
+  const companyCash = useMemo(() => Math.round(playerInvestment / ownRatio), [playerInvestment, ownRatio])
 
   const selectedMeta = selectedIndustry ? INDUSTRY_META[selectedIndustry] : null
   const industryDisabled = selectedMeta ? !selectedMeta.enabled : false
@@ -159,14 +158,10 @@ export function CompanyPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-bg-card rounded p-2 border border-border">
                   <div className="text-[11px] text-text-muted">您的持股</div>
                   <div className="text-sm font-semibold text-accent-blue">{CEO_SHARES.toLocaleString()} 股</div>
-                </div>
-                <div className="bg-bg-card rounded p-2 border border-border">
-                  <div className="text-[11px] text-text-muted">社会股本</div>
-                  <div className="text-sm font-semibold text-text-primary">{socialShares.toLocaleString()} 股</div>
                 </div>
                 <div className="bg-bg-card rounded p-2 border border-border">
                   <div className="text-[11px] text-text-muted">出资比例</div>
@@ -197,45 +192,56 @@ export function CompanyPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          <Panel title="公司概览">
-            <div className="p-3 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{INDUSTRY_META[company.industry]?.icon}</span>
-                <div>
-                  <div className="text-lg font-bold text-text-primary">{company.name}</div>
-                  <div className="text-xs text-text-muted">
-                    {company.symbol} · {INDUSTRY_META[company.industry]?.name} · Q{company.quarter}
-                  </div>
-                </div>
+          <div className="flex items-center gap-3 bg-bg-card rounded-lg p-4 border border-border">
+            <span className="text-2xl">{INDUSTRY_META[company.industry]?.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-lg font-bold text-text-primary truncate">{company.name}</div>
+              <div className="text-xs text-text-muted">
+                {company.symbol} · {INDUSTRY_META[company.industry]?.name} · Q{company.quarter}
               </div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="text-[11px] text-text-muted">公司现金</div>
+              <div className="text-lg font-bold text-accent-blue">¥{company.cash.toLocaleString()}</div>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-4 gap-2">
-                <MetricCard label="现金" value={`¥${company.cash.toLocaleString()}`} />
+          <Panel title="经营指标">
+            <div className="p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <MetricCard label="生产线" value={`${company.cap_count}条`} />
                 <MetricCard label="员工" value={`${company.employees}人`} />
-                <MetricCard label="股本" value={`${company.total_shares.toLocaleString()}股`} />
-                <MetricCard label="产能" value={`${company.cap_count}组`} />
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
+                <MetricCard label="库存" value={company.inventory > 0 ? `${company.inventory.toLocaleString()}件` : '—'} />
                 <MetricCard
-                  label="CEO持股"
-                  value={`${company.ceo_shares.toLocaleString()}股 (${(company.own_ratio * 100).toFixed(1)}%)`}
+                  label="产能"
+                  value={`${company.actual_output.toLocaleString()} / ${company.capacity_ceiling.toLocaleString()}`}
+                  hint={`员工 ${company.employees}人 × 2000件/人 = ${company.actual_output.toLocaleString()}件实际产出\n${company.cap_count}条产线 × 10000件/条 = ${company.capacity_ceiling.toLocaleString()}件产能上限`}
                 />
-                <MetricCard label="社会股本" value={`${company.social_shares.toLocaleString()}股`} />
-                <MetricCard label="上季营收" value={`¥${company.revenue.toLocaleString()}`} />
-                <MetricCard label="上季利润" value={`¥${company.profit.toLocaleString()}`} />
               </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                <MetricCard label="库存" value={company.inventory > 0 ? `${company.inventory}` : '—'} />
-                <MetricCard label="淤积等级" value={company.sludge_level > 0 ? `${company.sludge_level}级` : '—'} />
-              </div>
-
               {company.pending_builds > 0 && (
-                <div className="text-xs text-accent-gold">
+                <div className="mt-2 text-xs text-accent-gold">
                   ⏳ {company.pending_builds} 个产能正在建造中
                 </div>
               )}
+            </div>
+          </Panel>
+
+          <Panel title="股权结构">
+            <div className="p-3">
+              <div className="grid grid-cols-3 gap-2">
+                <MetricCard label="总股本" value={`${company.total_shares.toLocaleString()}股`} />
+                <MetricCard label="CEO持股" value={`${company.ceo_shares.toLocaleString()}股`} />
+                <MetricCard label="持股比例" value={`${(company.own_ratio * 100).toFixed(1)}%`} />
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="财务表现">
+            <div className="p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <MetricCard label="上季营收" value={`¥${company.revenue.toLocaleString()}`} />
+                <MetricCard label="上季利润" value={`¥${company.profit.toLocaleString()}`} />
+              </div>
             </div>
           </Panel>
 
@@ -277,11 +283,16 @@ export function CompanyPage() {
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="bg-bg-card rounded p-2.5 border border-border">
+    <div className="bg-bg-card rounded p-2.5 border border-border relative group">
       <div className="text-[11px] text-text-muted">{label}</div>
       <div className="text-sm font-semibold text-text-primary mt-0.5">{value}</div>
+      {hint && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-pre-line leading-relaxed opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none max-w-[280px] shadow-lg">
+          {hint}
+        </div>
+      )}
     </div>
   )
 }
