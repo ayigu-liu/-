@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Header } from '@/components/Header'
 import { useGameStore } from '@/stores/gameStore'
 import { ws } from '@/api/ws'
+import { usePlayerInfo } from '@/api/queries'
 import type { WsMessage, StockInfo } from '@/types'
 
 interface HoldingsUpdate {
@@ -9,6 +10,7 @@ interface HoldingsUpdate {
 }
 
 export function GamePage() {
+  const { data: playerInfo } = usePlayerInfo()
   const setTickCountdown = useGameStore((s) => s.setTickCountdown)
   const setCurrentTick = useGameStore((s) => s.setCurrentTick)
   const updateStock = useGameStore((s) => s.updateStock)
@@ -41,7 +43,7 @@ export function GamePage() {
 
   return (
     <div className="flex flex-col h-screen">
-      <Header />
+      <Header cash={playerInfo?.cash} nickname={playerInfo?.nickname} />
 
       <div className="flex-1 grid grid-cols-[1fr_260px] gap-3 p-3 overflow-hidden">
         {/* Left: K-line + Trading */}

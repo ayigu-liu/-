@@ -172,7 +172,7 @@ jjs-web/                # 前端源码目录
 **P1 遗留事项（不阻塞 P2，可在后续顺手修复）**：
 - ESLint 配置缺失（ESLint v9 需要 `eslint.config.js`，当前无配置文件，`pnpm lint` 报错）
 - TanStack Router 已安装但未使用——当前仅 2 页，用简单条件渲染替代路由；P7 阶段再接入
-- Header 现金显示为硬编码 `¥--`——等待 P2 个人资产系统接入后替换
+- ~~Header 现金显示为硬编码 `¥--`——等待 P2 个人资产系统接入后替换~~ ✅ 已修复 (2026-06-18)
 
 ---
 
@@ -300,16 +300,25 @@ EPS = 净利润 / 总股本
 ### P2.6: 个人资产系统 (1 天)
 
 ```
+internal/store/
+├── player_state.go                 # ✅ 玩家状态 CRUD（GetPlayerState + GetOrCreatePlayerState，懒创建 StartingCash）
+internal/handler/
+├── player.go                       # ✅ GET /api/player/info（JWT 认证，返回 nickname/email/cash/frozen_cash/margin_debt）
 internal/engine/
-├── portfolio.go                   # 玩家资产 + 持仓管理
+├── portfolio.go                    # ⏳ 玩家资产 + 持仓管理（待实现）
 ```
 
 **资产功能**:
-- 现金账户（可用余额 + 冻结资金）
-- 持仓记录（股票代码、数量、成本价）
-- 总资产计算 = 现金 + 持仓市值（后续 P5 加入 - 融券负债）
-- 资产变动流水（充值/提现/分红/交易盈亏）
-- GORM 模型：`PlayerState`, `Holding`, `AssetLog`
+- ✅ 现金账户基础查询（`GET /api/player/info`，TanStack Query 模式）
+- ⏳ 持仓记录（股票代码、数量、成本价）
+- ⏳ 总资产计算 = 现金 + 持仓市值（后续 P5 加入 - 融券负债）
+- ⏳ 资产变动流水（充值/提现/分红/交易盈亏）
+- GORM 模型：`PlayerState`, `Holding`, `AssetLog`（models.go 已定义）
+
+**前端对接**:
+- ✅ `PlayerBasicInfo` 类型 + `usePlayerInfo()` TanStack Query hook
+- ✅ Header 展示现金 / 昵称（优先使用 API 数据）
+- ✅ 注册时自动创建 PlayerState 行（`StartingCash=10,000`）
 
 **产出清单**:
 - 6 行业全部参数配置完成
@@ -317,7 +326,8 @@ internal/engine/
 - 季度结算完整跑通（AP 决策 → 董事会考核 → 股价更新）
 - 17 个行动全部可执行，效果/约束/冷却/递减正确
 - 研发系统 + 随机事件运转
-- 玩家资产查询/变动 API 可用
+- ✅ 玩家基础信息查询 API 可用 (`GET /api/player/info`)
+- ⏳ 玩家资产查询/变动完整 API（待持仓、交易引擎完成后补充）
 - 用 `simulate_v2.py` 的数值参数交叉验证
 
 ---

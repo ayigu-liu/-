@@ -74,6 +74,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := store.GetOrCreatePlayerState(user.ID, nickname); err != nil {
+		slog.Error("create player state failed", "error", err, "player_id", user.ID)
+	}
+
 	token, err := generateJWT(user.ID)
 	if err != nil {
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "token generation failed"})

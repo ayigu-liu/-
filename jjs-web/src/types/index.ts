@@ -72,6 +72,15 @@ export interface PlayerInfo {
   type: 'admin' | 'player' | 'npc'
 }
 
+export interface PlayerBasicInfo {
+  player_id: string
+  nickname: string
+  email: string
+  cash: number
+  frozen_cash: number
+  margin_debt: number
+}
+
 export interface NewsItem {
   id: string
   time: string

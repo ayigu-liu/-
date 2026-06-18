@@ -11,6 +11,7 @@ import type {
   QuarterlyReport,
   PendingOrder,
   IndustryInfo,
+  PlayerBasicInfo,
 } from '@/types'
 
 export const stockKeys = {
@@ -35,6 +36,10 @@ export const portfolioKeys = {
 export const marketKeys = {
   leaders: ['leaderboard'] as const,
   news: ['news'] as const,
+}
+
+export const playerKeys = {
+  info: ['player', 'info'] as const,
 }
 
 export function useStockList() {
@@ -106,6 +111,13 @@ export function useLeaderboard() {
   return useQuery<LeaderboardEntry[]>({
     queryKey: marketKeys.leaders,
     queryFn: () => api.get('/leaderboard'),
+  })
+}
+
+export function usePlayerInfo() {
+  return useQuery<PlayerBasicInfo>({
+    queryKey: playerKeys.info,
+    queryFn: () => api.get('/player/info'),
   })
 }
 

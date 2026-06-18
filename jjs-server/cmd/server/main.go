@@ -37,6 +37,7 @@ func main() {
 	r.Use(middleware.CORS)
 
 	authH := &handler.AuthHandler{}
+	playerH := &handler.PlayerHandler{}
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health)
@@ -46,6 +47,8 @@ func main() {
 			r.Post("/login", authH.Login)
 			r.With(middleware.OptionalJWT).Get("/me", authH.Me)
 		})
+
+		r.With(middleware.JWT).Get("/player/info", playerH.Info)
 	})
 
 	r.Group(func(r chi.Router) {

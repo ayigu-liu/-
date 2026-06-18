@@ -1,8 +1,14 @@
 import { useAuthStore } from '@/stores/authStore'
 import { useGameStore } from '@/stores/gameStore'
 
-export function Header() {
-  const nickname = useAuthStore((s) => s.nickname)
+interface HeaderProps {
+  cash?: number | null
+  nickname?: string | null
+}
+
+export function Header({ cash, nickname: playerNickname }: HeaderProps) {
+  const authNickname = useAuthStore((s) => s.nickname)
+  const nickname = playerNickname || authNickname
   const clearAuth = useAuthStore((s) => s.clearAuth)
   const wsConnected = useGameStore((s) => s.wsConnected)
   const wsLatency = useGameStore((s) => s.wsLatency)
@@ -21,7 +27,7 @@ export function Header() {
 
       <div className="flex items-center gap-3">
         <span className="text-xl font-bold tracking-wide tabular-nums text-accent-gold">
-          ¥--
+          {cash != null ? `¥${cash.toLocaleString()}` : '¥--'}
         </span>
         {tickCountdown > 0 && (
           <span
