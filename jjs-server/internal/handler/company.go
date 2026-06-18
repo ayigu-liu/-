@@ -242,8 +242,6 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			slog.Error("create initial quarterly failed", "error", err)
 		}
 
-		company.Inventory = result.Inventory
-		company.Demand = result.Demand
 		company.Quarter = currentQuarter
 		if err := store.UpdateCompany(company); err != nil {
 			slog.Error("update company after initial settlement failed", "error", err)
