@@ -142,37 +142,35 @@ export function QuarterlyPage() {
             <div className="p-4 space-y-4">
               <section>
                 <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">财务摘要</div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <DetailItem label="营收" value={`¥${selected.revenue.toLocaleString()}`} />
                   <DetailItem label="利润" value={`¥${selected.profit.toLocaleString()}`} positive={selected.profit >= 0} />
-                  <DetailItem label="总成本" value={`¥${selected.total_cost.toLocaleString()}`} />
-                  <DetailItem label="期初现金" value={`¥${selected.beginning_cash.toLocaleString()}`} />
+                  <DetailItem label="支出" value={`¥${selected.total_cost.toLocaleString()}`} />
                   <DetailItem label="期末现金" value={`¥${selected.cash.toLocaleString()}`} />
-                  <DetailItem label="现金流变动" value={`${selected.profit >= 0 ? '+' : ''}¥${selected.profit.toLocaleString()}`} positive={selected.profit >= 0} />
                 </div>
               </section>
 
               <section>
-                <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">成本组成</div>
+                <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">支出明细</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <DetailItem label="人力成本" value={`¥${selected.labor_cost.toLocaleString()}`} hint={`${formatRatio(selected.labor_cost, selected.total_cost)}`} />
-                  <DetailItem label="基础维护" value={`¥${selected.base_maintenance.toLocaleString()}`} hint={`${formatRatio(selected.base_maintenance, selected.total_cost)}`} />
-                  <DetailItem label="运营成本" value={`¥${selected.operational_cost.toLocaleString()}`} hint={`${formatRatio(selected.operational_cost, selected.total_cost)}`} />
-                  <DetailItem label="仓储成本" value={`¥${selected.warehouse_cost.toLocaleString()}`} hint={`${formatRatio(selected.warehouse_cost, selected.total_cost)}`} />
+                  <DetailItem label="人力支出" value={`¥${selected.labor_cost.toLocaleString()}`} hint={`${formatRatio(selected.labor_cost, selected.total_cost)}`} />
+                  <DetailItem label="基础维护支出" value={`¥${selected.base_maintenance.toLocaleString()}`} hint={`${formatRatio(selected.base_maintenance, selected.total_cost)}`} />
+                  <DetailItem label="运营支出" value={`¥${selected.operational_cost.toLocaleString()}`} hint={`${formatRatio(selected.operational_cost, selected.total_cost)}`} />
+                  <DetailItem label="仓储支出" value={`¥${selected.warehouse_cost.toLocaleString()}`} hint={`${formatRatio(selected.warehouse_cost, selected.total_cost)}`} />
                 </div>
               </section>
 
               <section>
                 <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">运营指标</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <DetailItem label="销量" value={`${selected.sales_qty.toLocaleString()}件`} />
-                  <DetailItem label="产量" value={`${selected.prod_qty.toLocaleString()}件`} />
-                  <DetailItem label="库存变更" value={`${selected.prod_qty - selected.sales_qty >= 0 ? '+' : ''}${(selected.prod_qty - selected.sales_qty).toLocaleString()}件`} positive={selected.prod_qty - selected.sales_qty >= 0} />
-                  <DetailItem label="开工产能" value={`${Math.min(selected.employees * 2000, selected.cap_count * 10000).toLocaleString()}件/季`} />
-                  <DetailItem label="产能上限" value={`${(selected.cap_count * 10000).toLocaleString()}件/季`} />
-                  <DetailItem label="库存" value={selected.inventory > 0 ? `${selected.inventory.toLocaleString()}件` : '—'} />
                   <DetailItem label="员工" value={`${selected.employees}人`} />
                   <DetailItem label="产线" value={`${selected.cap_count}条`} />
+                  <DetailItem label="开工产能" value={`${Math.min(selected.employees * 2000, selected.cap_count * 10000).toLocaleString()}件/季`} />
+                  <DetailItem label="产能上限" value={`${(selected.cap_count * 10000).toLocaleString()}件/季`} />
+                  <DetailItem label="产量" value={`${selected.prod_qty.toLocaleString()}件`} />
+                  <DetailItem label="销量" value={`${selected.sales_qty.toLocaleString()}件`} />
+                  <DetailItem label="库存变更" value={`${selected.prod_qty - selected.sales_qty >= 0 ? '+' : ''}${(selected.prod_qty - selected.sales_qty).toLocaleString()}件`} positive={selected.prod_qty - selected.sales_qty >= 0} />
+                  <DetailItem label="库存" value={selected.inventory > 0 ? `${selected.inventory.toLocaleString()}件` : '—'} />
                 </div>
               </section>
 
