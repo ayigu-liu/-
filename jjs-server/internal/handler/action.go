@@ -103,14 +103,24 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 
 	var actionLogs []domain.ActionLog
 
+	existingPendingCount := 0
+	if c.Industry == "mining" {
+		existingOrders, err := store.GetPendingBuildOrders(c.ID)
+		if err == nil {
+			existingPendingCount = len(existingOrders)
+		}
+	}
+	exploreIdx := existingPendingCount
+
 	for _, a := range req.Actions {
 		switch a.Type {
 		case "expand":
 			var capAmount int
 			if c.Industry == "mining" {
-				rng := engine.MiningRNG(c.ID, currentQ, "prospect")
 				for i := 0; i < a.Amount; i++ {
+					rng := engine.MiningRNG(c.ID, currentQ, "prospect", exploreIdx)
 					capAmount += int(engine.ProspectOreReserves(rng))
+					exploreIdx++
 				}
 			} else {
 				capAmount = a.Amount
