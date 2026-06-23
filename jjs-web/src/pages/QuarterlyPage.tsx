@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
-import { useQuarterlyReports } from '@/api/queries'
+import { useQuarterlyReports, useCompanyState } from '@/api/queries'
 import { Panel } from '@/components/Panel'
 import type { QuarterlyReport } from '@/types'
 
@@ -23,6 +23,8 @@ export function QuarterlyPage() {
     hasNextPage,
     fetchNextPage,
   } = useQuarterlyReports()
+  const { data: company } = useCompanyState()
+  const industry = company?.industry ?? 'manufacturing'
   const [selected, setSelected] = useState<QuarterlyReport | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -164,13 +166,23 @@ export function QuarterlyPage() {
                 <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">运营指标</div>
                 <div className="grid grid-cols-2 gap-2">
                   <DetailItem label="员工" value={`${selected.employees}人`} />
-                  <DetailItem label="产线" value={`${selected.cap_count}条`} />
-                  <DetailItem label="开工产能" value={`${Math.min(selected.employees * 2000, selected.cap_count * 10000).toLocaleString()}件/季`} />
-                  <DetailItem label="产能上限" value={`${(selected.cap_count * 10000).toLocaleString()}件/季`} />
-                  <DetailItem label="产量" value={`${selected.prod_qty.toLocaleString()}件`} />
-                  <DetailItem label="销量" value={`${selected.sales_qty.toLocaleString()}件`} />
-                  <DetailItem label="库存变更" value={`${selected.prod_qty - selected.sales_qty >= 0 ? '+' : ''}${(selected.prod_qty - selected.sales_qty).toLocaleString()}件`} positive={selected.prod_qty - selected.sales_qty >= 0} />
-                  <DetailItem label="库存" value={selected.inventory > 0 ? `${selected.inventory.toLocaleString()}件` : '—'} />
+                  {industry === 'mining' ? null : (
+                    <DetailItem label="产线" value={`${selected.cap_count}条`} />
+                  )}
+                  <DetailItem
+                    label={industry === 'mining' ? '工人产能' : '有效产能'}
+                    value={industry === 'mining'
+                      ? `${(selected.employees * 1500).toLocaleString()}单位/季`
+                      : `${Math.min(selected.employees * 2000, selected.cap_count * 10000).toLocaleString()}件/季`
+                    }
+                  />
+                  {industry === 'mining' ? null : (
+                    <DetailItem label="产能上限" value={`${(selected.cap_count * 10000).toLocaleString()}件/季`} />
+                  )}
+                  <DetailItem label="产量" value={`${selected.prod_qty.toLocaleString()}${industry === 'mining' ? '单位' : '件'}`} />
+                  <DetailItem label="销量" value={`${selected.sales_qty.toLocaleString()}${industry === 'mining' ? '单位' : '件'}`} />
+                  <DetailItem label="库存变更" value={`${selected.prod_qty - selected.sales_qty >= 0 ? '+' : ''}${(selected.prod_qty - selected.sales_qty).toLocaleString()}${industry === 'mining' ? '单位' : '件'}`} positive={selected.prod_qty - selected.sales_qty >= 0} />
+                  <DetailItem label="库存" value={selected.inventory > 0 ? `${selected.inventory.toLocaleString()}${industry === 'mining' ? '单位' : '件'}` : '—'} />
                 </div>
               </section>
 

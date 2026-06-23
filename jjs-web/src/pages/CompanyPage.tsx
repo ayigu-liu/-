@@ -281,12 +281,11 @@ function DetailItem({ label, value, positive, hint }: {
                     <MetricCard
                       label="矿藏储量"
                       value={`${company.cap_count.toLocaleString()}单位`}
-                      hint={`剩余可开采总量，每季最多开采 20%（即 ${company.capacity_ceiling.toLocaleString()} 单位）`}
                     />
                     <MetricCard
-                      label="季度上限"
+                      label="季度采掘上限"
                       value={`${company.capacity_ceiling.toLocaleString()}单位/季`}
-                      hint={`探明储量 × 20% = ${(company.cap_count).toLocaleString()} × 0.2 = ${company.capacity_ceiling.toLocaleString()}（向上取整）`}
+                      hint="受矿脉丰度与开采枯竭程度影响"
                     />
                     <MetricCard label="员工" value={`${company.employees}人`} />
                     <MetricCard
