@@ -1,11 +1,10 @@
 package handler
 
 import (
-	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"math"
-	"math/big"
 	"net/http"
 	"strconv"
 
@@ -20,20 +19,21 @@ type CompanyHandler struct{}
 type createCompanyRequest struct {
 	Name             string  `json:"name"`
 	Industry         string  `json:"industry"`
-	TotalShares      int     `json:"total_shares"`
+	InvestorShares   int64   `json:"investor_shares"`
 	PlayerInvestment float64 `json:"player_investment"`
 }
 
 type createCompanyResponse struct {
-	ID        uint    `json:"id"`
-	Symbol    string  `json:"symbol"`
-	Name      string  `json:"name"`
-	Industry  string  `json:"industry"`
-	Cash      int64 `json:"cash"`
-	Employees int     `json:"employees"`
-	TotalShares int   `json:"total_shares"`
-	CEOShares   int64 `json:"ceo_shares"`
-	OwnRatio    float64 `json:"own_ratio"`
+	ID             uint    `json:"id"`
+	Symbol         string  `json:"symbol"`
+	Name           string  `json:"name"`
+	Industry       string  `json:"industry"`
+	Cash           int64   `json:"cash"`
+	Employees      int     `json:"employees"`
+	CEOShares      int64   `json:"ceo_shares"`
+	InvestorShares int64   `json:"investor_shares"`
+	TotalShares    int64   `json:"total_shares"`
+	OwnRatio       float64 `json:"own_ratio"`
 }
 
 type PendingOrderInfo struct {
@@ -41,36 +41,39 @@ type PendingOrderInfo struct {
 	Amount       int `json:"amount"`
 }
 
-	type companyStateResponse struct {
-		ID              uint    `json:"id"`
-		Symbol          string  `json:"symbol"`
-		Name            string  `json:"name"`
-		Industry        string  `json:"industry"`
-		CEOID           string  `json:"ceo_id"`
-		CreatedQuarter  int     `json:"created_quarter"`
-		Cash            int64   `json:"cash"`
-		Employees       int     `json:"employees"`
-		Status          string  `json:"status"`
-		TotalShares     int     `json:"total_shares"`
-		CEOShares       int64   `json:"ceo_shares"`
-		OwnRatio        float64 `json:"own_ratio"`
-		CapCount        int     `json:"cap_count"`
-		Inventory       int64   `json:"inventory"`
-		CapacityCeiling int64   `json:"capacity_ceiling"`
-		ActualOutput    int64   `json:"actual_output"`
-		Revenue         int64   `json:"revenue"`
-		Profit          int64   `json:"profit"`
-		LastQuarterly   *domain.CompanyQuarterly `json:"last_quarterly"`
-		PendingOrders   []PendingOrderInfo       `json:"pending_orders"`
-		ActionsSubmitted int                     `json:"actions_submitted"`
-	}
+type companyStateResponse struct {
+	ID               uint                     `json:"id"`
+	Symbol           string                   `json:"symbol"`
+	Name             string                   `json:"name"`
+	Industry         string                   `json:"industry"`
+	CEOID            string                   `json:"ceo_id"`
+	CreatedQuarter   int                      `json:"created_quarter"`
+	Cash             int64                    `json:"cash"`
+	Employees        int                      `json:"employees"`
+	Status           string                   `json:"status"`
+	CEOShares        int64                    `json:"ceo_shares"`
+	InvestorShares   int64                    `json:"investor_shares"`
+	TotalShares      int64                    `json:"total_shares"`
+	IpoQuarter       int                      `json:"ipo_quarter"`
+	PublicFloat      int64                    `json:"public_float"`
+	OwnRatio         float64                  `json:"own_ratio"`
+	CapCount         int                      `json:"cap_count"`
+	Inventory        int64                    `json:"inventory"`
+	CapacityCeiling  int64                    `json:"capacity_ceiling"`
+	ActualOutput     int64                    `json:"actual_output"`
+	Revenue          int64                    `json:"revenue"`
+	Profit           int64                    `json:"profit"`
+	LastQuarterly    *domain.CompanyQuarterly `json:"last_quarterly"`
+	PendingOrders    []PendingOrderInfo       `json:"pending_orders"`
+	ActionsSubmitted int                      `json:"actions_submitted"`
+}
 
 var industryPrefix = map[string]string{
 	"tech":          "TK",
 	"finance":       "JI",
-	"manufacturing": "ZA",
+	"manufacturing": "MF",
 	"mining":        "MN",
-	"consumer":      "XF",
+	"consumer":      "CS",
 	"healthcare":    "YL",
 }
 
@@ -90,16 +93,25 @@ func generateSymbol(industry string) (string, error) {
 	if !ok {
 		prefix = "XX"
 	}
-	const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	buf := make([]byte, 4)
-	for i := range buf {
-		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
-		if err != nil {
-			return "", err
-		}
-		buf[i] = letters[idx.Int64()]
+
+	var maxSymbol *string
+	if err := store.DB.Model(&domain.Company{}).
+		Select("MAX(symbol)").
+		Where("symbol LIKE ?", prefix+"%").
+		Scan(&maxSymbol).Error; err != nil {
+		return "", err
 	}
-	return prefix + string(buf), nil
+
+	nextNum := 1
+	if maxSymbol != nil && *maxSymbol != "" {
+		if _, err := fmt.Sscanf(*maxSymbol, prefix+"%d", &nextNum); err == nil {
+			nextNum++
+		} else {
+			nextNum = 1
+		}
+	}
+
+	return fmt.Sprintf("%s%03d", prefix, nextNum), nil
 }
 
 func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -137,13 +149,14 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.TotalShares < 10000 || req.TotalShares > 200000 {
-		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "总股本需在 1万 到 20万 之间"})
+	if req.InvestorShares < 10000 || req.InvestorShares > 200000 {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "投资方股数需在 1万 到 20万 之间"})
 		return
 	}
 
 	ceoShares := int64(10000)
-	ownRatio := float64(10000) / float64(req.TotalShares)
+	totalShares := ceoShares + req.InvestorShares
+	ownRatio := float64(ceoShares) / float64(totalShares)
 	if ownRatio < 0.05 {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "出资比例不能低于 5%"})
 		return
@@ -179,17 +192,18 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	company := &domain.Company{
-		CEOID:       userID,
-		Symbol:      symbol,
-		Name:        req.Name,
-		Industry:    req.Industry,
-		Cash:        companyCash,
-		Employees:   ind.StartingEmployees,
+		CEOID:          userID,
+		Symbol:         symbol,
+		Name:           req.Name,
+		Industry:       req.Industry,
+		Cash:           companyCash,
+		Employees:      ind.StartingEmployees,
 		CreatedQuarter: int(engine.GlobalQuarter.Load()),
-		Status:      "active",
-		TotalShares: req.TotalShares,
-		CEOShares:   ceoShares,
-		CapCount:    capCount,
+		Status:         "active",
+		CEOShares:      ceoShares,
+		InvestorShares: req.InvestorShares,
+		TotalShares:    totalShares,
+		CapCount:       capCount,
 	}
 
 	if err := store.CreateCompany(company); err != nil {
@@ -246,6 +260,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			Employees:       company.Employees,
 			TotalShares:     company.TotalShares,
 			CEOShares:       company.CEOShares,
+			InvestorShares:  company.InvestorShares,
 			CapCount:        company.CapCount,
 			Inventory:       result.Inventory,
 			Demand:          result.Demand,
@@ -305,6 +320,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			Employees:       company.Employees,
 			TotalShares:     company.TotalShares,
 			CEOShares:       company.CEOShares,
+			InvestorShares:  company.InvestorShares,
 			CapCount:        result.OreRemaining,
 			Inventory:       result.Inventory,
 			Demand:          result.Demand,
@@ -324,15 +340,16 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusCreated, createCompanyResponse{
-		ID:          company.ID,
-		Symbol:      company.Symbol,
-		Name:        company.Name,
-		Industry:    company.Industry,
-		Cash:        int64(company.Cash),
-		Employees:   company.Employees,
-		TotalShares: company.TotalShares,
-		CEOShares:   company.CEOShares,
-		OwnRatio:    ownRatio,
+		ID:             company.ID,
+		Symbol:         company.Symbol,
+		Name:           company.Name,
+		Industry:       company.Industry,
+		Cash:           int64(company.Cash),
+		Employees:      company.Employees,
+		CEOShares:      company.CEOShares,
+		InvestorShares: company.InvestorShares,
+		TotalShares:    company.TotalShares,
+		OwnRatio:       ownRatio,
 	})
 }
 
@@ -408,15 +425,15 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 	var profit int64
 	for i := range filtered {
 		if filtered[i].Quarter == confirmedQuarter {
-			copy := filtered[i]
-			lastQ = &copy
-			revenue = copy.Revenue
-			profit = copy.Profit
+			cp := filtered[i]
+			lastQ = &cp
+			revenue = cp.Revenue
+			profit = cp.Profit
 			break
 		}
 	}
 
-	ownRatio := float64(10000) / float64(company.TotalShares)
+	ownRatio := float64(company.CEOShares) / float64(company.TotalShares)
 	var capacityCeiling int64
 	var actualOutput int64
 	if company.Industry == "mining" {
@@ -446,26 +463,29 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, companyStateResponse{
-		ID:              company.ID,
-		Symbol:          company.Symbol,
-		Name:            company.Name,
-		Industry:        company.Industry,
-		CEOID:           company.CEOID,
-		CreatedQuarter:  company.CreatedQuarter,
-		Cash:            int64(company.Cash),
-		Employees:       company.Employees,
-		Status:          company.Status,
-		TotalShares:     company.TotalShares,
-		CEOShares:       company.CEOShares,
-		OwnRatio:        ownRatio,
-		CapCount:        company.CapCount,
-		Inventory:       company.Inventory,
-		CapacityCeiling: capacityCeiling,
-		ActualOutput:    actualOutput,
-		Revenue:         revenue,
-		Profit:          profit,
-		LastQuarterly:   lastQ,
-		PendingOrders:   pendingList,
+		ID:               company.ID,
+		Symbol:           company.Symbol,
+		Name:             company.Name,
+		Industry:         company.Industry,
+		CEOID:            company.CEOID,
+		CreatedQuarter:   company.CreatedQuarter,
+		Cash:             int64(company.Cash),
+		Employees:        company.Employees,
+		Status:           company.Status,
+		CEOShares:        company.CEOShares,
+		InvestorShares:   company.InvestorShares,
+		TotalShares:      company.TotalShares,
+		IpoQuarter:       company.IpoQuarter,
+		PublicFloat:      company.PublicFloat,
+		OwnRatio:         ownRatio,
+		CapCount:         company.CapCount,
+		Inventory:        company.Inventory,
+		CapacityCeiling:  capacityCeiling,
+		ActualOutput:     actualOutput,
+		Revenue:          revenue,
+		Profit:           profit,
+		LastQuarterly:    lastQ,
+		PendingOrders:    pendingList,
 		ActionsSubmitted: actionsSubmitted,
 	})
 }

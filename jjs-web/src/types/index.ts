@@ -126,8 +126,11 @@ export interface CompanyState {
   cash: number
   employees: number
   status: string
-  total_shares: number
   ceo_shares: number
+  investor_shares: number
+  total_shares: number
+  ipo_quarter: number
+  public_float: number
   own_ratio: number
   cap_count: number
   inventory: number
@@ -177,8 +180,11 @@ export interface QuarterlyReport {
   employees: number
   total_shares: number
   ceo_shares: number
+  investor_shares: number
+  public_float: number
   cap_count: number
   inventory: number
+  demand: number
   CreatedAt: string
 }
 

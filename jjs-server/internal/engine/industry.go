@@ -12,16 +12,17 @@ type IndustryConfig struct {
 	CapUnitCeiling       float64
 	CapBuildCost         float64
 	CapBuildQuarters     int
+	CapAssetValue        float64
 	CapSpecial           string
 	BaseMaintenanceRate int64
 	OperationalCostRate int64
 	HireCost             float64
 
 	// 景气度游走参数 (中心=1.0)
-	ProsperityMin          float64
-	ProsperityMax          float64
-	ProsperityMaxStep      float64
-	ProsperityRegression   float64
+	ProsperityMin        float64
+	ProsperityMax        float64
+	ProsperityMaxStep    float64
+	ProsperityRegression float64
 
 	// 景气度 → 价格传导
 	PriceElasticity float64
@@ -55,6 +56,7 @@ var Industries = map[string]IndustryConfig{
 		CapUnitCeiling:       5000,
 		CapBuildCost:         50000,
 		CapBuildQuarters:     0,
+		CapAssetValue:        50000,
 		CapSpecial:           "depreciate_30pct_5q",
 		BaseMaintenanceRate: 800,
 		OperationalCostRate: 1700,
@@ -79,6 +81,7 @@ var Industries = map[string]IndustryConfig{
 		CapUnitCeiling:       10_000_000,
 		CapBuildCost:         200000,
 		CapBuildQuarters:     3,
+		CapAssetValue:        200000,
 		CapSpecial:           "",
 		BaseMaintenanceRate: 3000,
 		OperationalCostRate: 3000,
@@ -103,6 +106,7 @@ var Industries = map[string]IndustryConfig{
 		CapUnitCeiling:       10000,
 		CapBuildCost:         80000,
 		CapBuildQuarters:     1,
+		CapAssetValue:        80000,
 		CapSpecial:           "",
 		BaseMaintenanceRate: 1000,
 		OperationalCostRate: 2000,
@@ -127,6 +131,7 @@ var Industries = map[string]IndustryConfig{
 		CapUnitCeiling:       8000,
 		CapBuildCost:         120000,
 		CapBuildQuarters:     2,
+		CapAssetValue:        2.0,
 		CapSpecial:           "ore_reserves",
 		BaseMaintenanceRate: 1,
 		OperationalCostRate: 1200,
@@ -151,6 +156,7 @@ var Industries = map[string]IndustryConfig{
 		CapUnitCeiling:       800,
 		CapBuildCost:         60000,
 		CapBuildQuarters:     1,
+		CapAssetValue:        60000,
 		CapSpecial:           "",
 		BaseMaintenanceRate: 1500,
 		OperationalCostRate: 1500,
@@ -175,6 +181,7 @@ var Industries = map[string]IndustryConfig{
 		CapUnitCeiling:       3,
 		CapBuildCost:         150000,
 		CapBuildQuarters:     2,
+		CapAssetValue:        150000,
 		CapSpecial:           "random_output",
 		BaseMaintenanceRate: 2000,
 		OperationalCostRate: 3000,

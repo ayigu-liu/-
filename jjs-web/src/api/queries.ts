@@ -26,6 +26,7 @@ export const companyKeys = {
   quarterly: ['company', 'quarterly'] as const,
   board: ['company', 'board'] as const,
   industries: ['industries'] as const,
+  ipoStatus: ['company', 'ipo', 'status'] as const,
 }
 
 export const portfolioKeys = {
@@ -69,6 +70,33 @@ export function useCompanyState() {
   return useQuery<CompanyState>({
     queryKey: companyKeys.state,
     queryFn: () => api.get('/company/state'),
+  })
+}
+
+export interface IpoConditionItem {
+  met: boolean
+  current: number
+  required: number
+}
+
+export interface IpoStatusInfo {
+  eligible: boolean
+  conditions: {
+    ipo_quarter: number
+    listed?: boolean
+    quarters: IpoConditionItem
+    consecutive_profit: IpoConditionItem
+    cash: IpoConditionItem
+    annual_revenue: IpoConditionItem
+    detail: { nav: number; eps: number; pe: number }
+  }
+}
+
+export function useIpoStatus() {
+  return useQuery<IpoStatusInfo>({
+    queryKey: companyKeys.ipoStatus,
+    queryFn: () => api.get('/company/ipo/status'),
+    refetchInterval: 30_000,
   })
 }
 

@@ -20,7 +20,7 @@
 |------|------|-----------|------|----------|
 | **P1** | 项目骨架与基础设施 | 3-4 天 | 低 | ✅ 已完成 |
 | **P2** | 公司运营 v2 + 个人资产 | 7-9 天 | 中 | ✅ 核心已完成（行业模型、季度结算、扩产/招人行动系统） |
-| **P3** | 核心交易引擎 | 5-7 天 | 高 | 订单簿、撮合、行情、股票交易 |
+| **P3** | 核心交易引擎 | 5-7 天 | 高 | 🔄 P3.1/P3.2 已完成（数据模型+IPO），P3.3-P3.5 待实现 |
 | **P4** | AI 交易者系统 | 4-5 天 | 中 | 6 类 Bot 全部实现 |
 | **P5** | 业务系统 | 4-5 天 | 中 | 融资融券、SEC、市场新闻、排行榜 |
 | **P6** | API + WebSocket | 3-4 天 | 低 | REST + WS 完整可用 |
@@ -423,7 +423,7 @@ internal/engine/
 | 证券机构扫描间隔 | 5 tick |
 | 未成交买单超时 | 10 tick |
 
-### P3.1: 数据模型变更与 Company IPO 字段 (1 天)
+### P3.1: 数据模型变更与 Company IPO 字段 ✅ 完成 (2026-06-24)
 
 **Company 表新增字段**:
 - `CEOShares` 改为 int64（现有字段不变）
@@ -451,7 +451,7 @@ BrokerInventory    # 证券机构: TotalQty/FrozenQty
 
 **产出**: GORM 模型定义 + AutoMigrate + `store/` CRUD。
 
-### P3.2: IPO 上市流程 (1 天)
+### P3.2: IPO 上市流程 ✅ 完成 (2026-06-24)
 
 **IPO 条件校验**（`handler/ipo.go`）:
 
@@ -462,10 +462,16 @@ BrokerInventory    # 证券机构: TotalQty/FrozenQty
 | 现金 | ≥ ¥1,000,000 |
 | 年度营收 | 近4季合计 ≥ ¥5,000,000 |
 
-**POST /api/company/ipo**:
+**API**:
 
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/company/ipo` | 发起 IPO（Body: `{float_ratio: 0.10~0.50}`），即时校验+发行价计算+创建Stock/BrokerInventory |
+| GET | `/api/company/ipo/status` | IPO 条件进度查询（各条件 current/required/met + 估值预览 NAV/EPS/PE） |
+
+**POST /api/company/ipo**:
 ```
-Body: { public_float_ratio: 0.10~0.50 }
+Body: { float_ratio: 0.10~0.50 }
 即时执行:
   1. 校验 IPO 条件
   2. 计算发行价 = round((NAV + EPS×行业PE×景气度) × 0.95 × 100) 分
@@ -478,16 +484,15 @@ Body: { public_float_ratio: 0.10~0.50 }
   9. BrokerInventory.TotalQty = 增发股数
 ```
 
-**CEO 减持**（公司 action，`handler/action.go` 扩展）:
+**前端**:
+- `CompanyPage.tsx`：新增 IPO 进度面板（四条件进度条 + 估值预览悬停说明 + 发起按钮）、IPO 弹窗（增发比例滑块 10%-50%、实时预览发行价/募资额）
+- `api/queries.ts`：新增 `useIpoStatus()` hook + `IpoStatusInfo`/`IpoConditionItem` 类型
+- `types/index.ts`：`CompanyState` 新增 `investor_shares`/`ipo_quarter`/`public_float`
 
-```go
-type IPOAction = "ipo" | "divest"
-// divest: IpoQuarter+4季度后可执行
-// 上限: min(ceo_shares, total_shares × 5%)
-// CEO 持股 → BrokerInventory → 市场释放
-```
+**待完成**:
+- ⏳ CEO 减持 action 扩展（`handler/action.go`，IPO+4季度后可执行）
 
-**产出**: `POST /api/company/ipo` 端点 + 减持 action 扩展 + 发行价计算。
+**产出**: IPO 端点 + IPO 状态端点 + 前端 IPO 完整交互。
 
 ### P3.3: 订单簿与撮合引擎 (1.5 天)
 
@@ -562,15 +567,18 @@ internal/engine/
 
 ### P3 产出清单
 
-- ✅ GORM 模型: Stock/Order/Trade/Candle/BrokerInventory + Company 新增字段
-- ✅ IPO 条件校验 + POST /api/company/ipo + 发行价计算
-- ✅ CEO 减持 action 扩展
-- ✅ 订单簿撮合引擎 (limit/market, 无做空)
-- ✅ 证券机构库存释放机制
-- ✅ 2s tick 主循环 + 行情更新 (锚定 V2 公式)
-- ✅ K 线 40t/150t/600t 三周期聚合
-- ✅ 完整 REST API (行情/下单/撤单/持仓)
-- ✅ Symbol 前缀+自增序号生成
+- ✅ GORM 模型: Stock/Order/Trade/Candle/BrokerInventory + Company 新增字段 (P3.1)
+- ✅ IPO 条件校验 + POST /api/company/ipo + GET /api/company/ipo/status + 发行价计算 (P3.2)
+- ✅ 前端 IPO 进度面板 + IPO 弹窗（增发比例/发行价/募资额预览）(P3.2)
+- ✅ IndustryConfig.CapAssetValue + 矿业勘探期望调至 60k (P3.1)
+- ✅ Symbol 前缀+自增序号生成 (P3.1)
+- ✅ 创建公司 API: total_shares → investor_shares 输入翻转 (P3.1)
+- ⏳ CEO 减持 action 扩展 (P3.2 遗留)
+- ⏳ 订单簿撮合引擎 (limit/market, 无做空) (P3.3)
+- ⏳ 证券机构库存释放机制 (P3.3)
+- ⏳ 2s tick 主循环 + 行情更新 (锚定 V2 公式) (P3.4)
+- ⏳ K 线 40t/150t/600t 三周期聚合 (P3.4)
+- ⏳ 完整 REST API (行情/下单/撤单/持仓) (P3.5)
 
 ---
 
@@ -879,8 +887,10 @@ internal/handler/
 ```
 ✅ P1 完成 (2026-06-18): 项目骨架（Go+GORM+MySQL + React 骨架可运行）
 ✅ P2.1 完成 (2026-06-18): 行业配置 + 三维数据模型 + 公司创建/查询 API + 路由拆分
-Week 2-3:    P2.2-P2.6 公司运营 v2 持续推进（AP 系统/董事会/研发/事件）
-Week 3-4:    P3 核心交易引擎（订单簿、撮合、行情，对接 v2 股价公式）
+✅ P2.2 完成 (2026-06-23): 扩产/招人行动系统（每季3次硬限制，建造队列）
+✅ P3.1 完成 (2026-06-24): 数据模型变更（Company新字段+5个新GORM模型）+ Symbol前缀自增 + 股权翻转
+✅ P3.2 完成 (2026-06-24): IPO 条件校验 + 发行价计算 + IPO API + 前端完整交互
+Week 3-4:    P3.3-P3.5 订单簿/撮合/主循环/行情/API（待实现）
 Week 5:      P4 AI 交易者（6 类 Bot）
 Week 5-6:    P5 业务系统（融资、SEC、市场新闻、排行榜）
 Week 6-7:    P6 API + WS（含 v2 公司端点）

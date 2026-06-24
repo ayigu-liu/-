@@ -221,6 +221,8 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 		quarterly.Employees = c.Employees
 		quarterly.TotalShares = c.TotalShares
 		quarterly.CEOShares = c.CEOShares
+		quarterly.InvestorShares = c.InvestorShares
+		quarterly.PublicFloat = c.PublicFloat
 		quarterly.CapCount = c.CapCount
 		quarterly.Inventory = result.Inventory
 		quarterly.Demand = result.Demand
@@ -270,6 +272,8 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 		quarterly.Employees = c.Employees
 		quarterly.TotalShares = c.TotalShares
 		quarterly.CEOShares = c.CEOShares
+		quarterly.InvestorShares = c.InvestorShares
+		quarterly.PublicFloat = c.PublicFloat
 		quarterly.CapCount = result.OreRemaining
 		quarterly.Inventory = result.Inventory
 		quarterly.Demand = result.Demand

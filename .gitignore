@@ -28,3 +28,4 @@ jjs-server/config.json
 
 tmp/
 bin/
+jjs-server/server

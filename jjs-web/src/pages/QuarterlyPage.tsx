@@ -189,8 +189,12 @@ export function QuarterlyPage() {
               <section>
                 <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">股权数据</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <DetailItem label="总股本" value={`${selected.total_shares.toLocaleString()}股`} />
                   <DetailItem label="CEO持股" value={`${selected.ceo_shares.toLocaleString()}股 (${(selected.ceo_shares / selected.total_shares * 100).toFixed(0)}%)`} />
+                  <DetailItem label="投资方持股" value={`${selected.investor_shares.toLocaleString()}股`} />
+                  <DetailItem label="总股本" value={`${selected.total_shares.toLocaleString()}股`} />
+                  {selected.public_float > 0 && (
+                    <DetailItem label="流通股" value={`${selected.public_float.toLocaleString()}股`} />
+                  )}
                 </div>
               </section>
             </div>

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { api } from '@/api/client'
-import { useCompanyState, usePlayerInfo } from '@/api/queries'
+import { useCompanyState, usePlayerInfo, useIpoStatus } from '@/api/queries'
 import { Panel } from '@/components/Panel'
 import type { ActionResponse } from '@/types'
 
@@ -16,9 +16,35 @@ const INDUSTRY_META: Record<string, { name: string; icon: string; desc: string; 
 }
 
 const CEO_SHARES = 10000
-const TOTAL_SHARES_MIN = 10000
-const TOTAL_SHARES_MAX = 200000
+const INVESTOR_SHARES_MIN = 10000
+const INVESTOR_SHARES_MAX = 190000
 const INVEST_MIN = 1000
+
+function ConditionBar({ label, item, suffix, isCurrency }: {
+  label: string
+  item: { met: boolean; current: number; required: number }
+  suffix: string
+  isCurrency?: boolean
+}) {
+  const pct = Math.max(0, Math.min(100, Math.round((item.current / item.required) * 100)))
+  const fmt = (n: number) => isCurrency ? `¥${n.toLocaleString()}` : n.toLocaleString()
+  return (
+    <div className="mb-2">
+      <div className="flex justify-between text-xs mb-0.5">
+        <span className="text-text-secondary">{label}</span>
+        <span className={item.met ? 'text-accent-green' : 'text-text-muted'}>
+          {fmt(item.current)} / {fmt(item.required)}{isCurrency ? '' : suffix}
+        </span>
+      </div>
+      <div className="h-1.5 bg-bg-card rounded-full overflow-hidden border border-border">
+        <div
+          className={`h-full rounded-full transition-all ${item.met ? 'bg-accent-green' : 'bg-accent-blue'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
 
 function formatQuarter(q: number) {
   const year = Math.floor((q - 1) / 4) + 1
@@ -34,9 +60,10 @@ function formatRatio(part: number, total: number) {
 export function CompanyPage() {
   const { data: company, isLoading } = useCompanyState()
   const { data: playerInfo } = usePlayerInfo()
+  const { data: ipoStatus } = useIpoStatus()
   const [selectedIndustry, setSelectedIndustry] = useState<string>('')
   const [companyName, setCompanyName] = useState('')
-  const [totalShares, setTotalShares] = useState(50000)
+  const [investorShares, setInvestorShares] = useState(50000)
   const [playerInvestment, setPlayerInvestment] = useState(50000)
   const [creating, setCreating] = useState(false)
   const [showQuarterly, setShowQuarterly] = useState(false)
@@ -56,6 +83,12 @@ export function CompanyPage() {
 
   const playerCash = playerInfo?.cash ?? 100000
 
+  const [showIpo, setShowIpo] = useState(false)
+  const [ipoFloatRatio, setIpoFloatRatio] = useState(0.3)
+  const [ipoError, setIpoError] = useState('')
+  const [submittingIpo, setSubmittingIpo] = useState(false)
+
+  const totalShares = useMemo(() => CEO_SHARES + investorShares, [investorShares])
   const ownRatio = useMemo(() => CEO_SHARES / totalShares, [totalShares])
   const companyCash = useMemo(() => Math.round(playerInvestment / ownRatio), [playerInvestment, ownRatio])
 
@@ -70,7 +103,7 @@ export function CompanyPage() {
       await api.post('/company/create', {
         name: companyName.trim(),
         industry: selectedIndustry,
-        total_shares: totalShares,
+        investor_shares: investorShares,
         player_investment: playerInvestment,
       })
       queryClient.invalidateQueries({ queryKey: ['company'] })
@@ -78,6 +111,20 @@ export function CompanyPage() {
       setError(err instanceof Error ? err.message : '创建失败')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleIpo = async () => {
+    setSubmittingIpo(true)
+    setIpoError('')
+    try {
+      await api.post('/company/ipo', { float_ratio: ipoFloatRatio })
+      queryClient.invalidateQueries({ queryKey: ['company'] })
+      setShowIpo(false)
+    } catch (err) {
+      setIpoError(err instanceof Error ? err.message : 'IPO 失败')
+    } finally {
+      setSubmittingIpo(false)
     }
   }
 
@@ -200,21 +247,21 @@ function DetailItem({ label, value, positive, hint }: {
 
                 <div>
                   <div className="flex justify-between text-xs text-text-secondary mb-1">
-                    <span>发行总股本</span>
-                    <span className="text-text-primary font-semibold">{totalShares.toLocaleString()} 股</span>
+                    <span>投资方持股</span>
+                    <span className="text-text-primary font-semibold">{investorShares.toLocaleString()} 股</span>
                   </div>
                   <input
                     type="range"
-                    min={TOTAL_SHARES_MIN}
-                    max={TOTAL_SHARES_MAX}
+                    min={INVESTOR_SHARES_MIN}
+                    max={INVESTOR_SHARES_MAX}
                     step={1000}
-                    value={totalShares}
-                    onChange={(e) => setTotalShares(Number(e.target.value))}
+                    value={investorShares}
+                    onChange={(e) => setInvestorShares(Number(e.target.value))}
                     className="w-full accent-accent-blue"
                   />
                   <div className="flex justify-between text-[11px] text-text-muted mt-0.5">
                     <span>1万</span>
-                    <span>20万</span>
+                    <span>19万</span>
                   </div>
                 </div>
               </div>
@@ -366,11 +413,65 @@ function DetailItem({ label, value, positive, hint }: {
           <Panel title="股权结构">
             <div className="p-3">
               <div className="grid grid-cols-2 gap-2">
-                <MetricCard label="总股本" value={`${company.total_shares.toLocaleString()}股`} />
                 <MetricCard label="CEO持股" value={`${company.ceo_shares.toLocaleString()}股 (${(company.own_ratio * 100).toFixed(1)}%)`} />
+                <MetricCard label="投资方持股" value={`${company.investor_shares.toLocaleString()}股 (${((company.investor_shares / company.total_shares) * 100).toFixed(1)}%)`} />
+                <MetricCard label="总股本" value={`${company.total_shares.toLocaleString()}股`} />
+                {company.ipo_quarter > 0 && (
+                  <MetricCard label="流通股" value={`${company.public_float.toLocaleString()}股`} />
+                )}
               </div>
             </div>
           </Panel>
+
+          {ipoStatus && (
+            <Panel title={ipoStatus.conditions.listed ? '上市信息' : 'IPO 进度'}>
+              <div className="p-3">
+                {ipoStatus.conditions.listed ? (
+                  <div className="text-sm text-text-secondary">
+                    <span className="text-accent-green font-semibold">已上市</span>
+                    <span className="ml-2">Q{ipoStatus.conditions.ipo_quarter}</span>
+                    <span className="ml-4">流通股 {company.public_float.toLocaleString()} 股</span>
+                  </div>
+                ) : (
+                  <>
+                    <ConditionBar label="运营季度" item={ipoStatus.conditions.quarters} suffix="季" />
+                    <ConditionBar label="连续盈利" item={ipoStatus.conditions.consecutive_profit} suffix="季" />
+                    <ConditionBar label="现金储备" item={ipoStatus.conditions.cash} suffix="¥" isCurrency />
+                    <ConditionBar label="近4季营收" item={ipoStatus.conditions.annual_revenue} suffix="¥" isCurrency />
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <div className="flex justify-between text-xs text-text-muted mb-1">
+                        <span>估值预览</span>
+                        <span className="flex gap-1">
+                          <span className="relative group cursor-help">
+                            <span className="underline decoration-dotted underline-offset-2">NAV</span>
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">(现金 + 固定资产) ÷ 总股本</span>
+                          </span>
+                          <span>{ipoStatus.conditions.detail.nav.toFixed(2)}</span>
+                          <span className="relative group cursor-help">
+                            <span className="underline decoration-dotted underline-offset-2">EPS</span>
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">近4季平均净利润 ÷ 总股本</span>
+                          </span>
+                          <span>{ipoStatus.conditions.detail.eps.toFixed(4)}</span>
+                          <span className="relative group cursor-help">
+                            <span className="underline decoration-dotted underline-offset-2">PE</span>
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">行业基准市盈率</span>
+                          </span>
+                          <span>{ipoStatus.conditions.detail.pe}×</span>
+                        </span>
+                      </div>
+                      <button
+                        className={`btn btn-full mt-2 ${ipoStatus.eligible ? 'btn-primary' : 'opacity-50 cursor-not-allowed bg-bg-card border border-border text-text-muted'}`}
+                        disabled={!ipoStatus.eligible}
+                        onClick={() => setShowIpo(true)}
+                      >
+                        {ipoStatus.eligible ? '🚀 发起 IPO' : '条件未满足'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Panel>
+          )}
 
           <Panel
             title="财务表现"
@@ -474,8 +575,12 @@ function DetailItem({ label, value, positive, hint }: {
                   <section>
                     <div className="text-xs font-semibold text-text-secondary mb-2 tracking-wider">股权数据</div>
                     <div className="grid grid-cols-2 gap-2">
-                      <DetailItem label="总股本" value={`${confirmedQ.total_shares.toLocaleString()}股`} />
                       <DetailItem label="CEO持股" value={`${confirmedQ.ceo_shares.toLocaleString()}股 (${(confirmedQ.ceo_shares / confirmedQ.total_shares * 100).toFixed(0)}%)`} />
+                      <DetailItem label="投资方持股" value={`${confirmedQ.investor_shares.toLocaleString()}股`} />
+                      <DetailItem label="总股本" value={`${confirmedQ.total_shares.toLocaleString()}股`} />
+                      {confirmedQ.public_float > 0 && (
+                        <DetailItem label="流通股" value={`${confirmedQ.public_float.toLocaleString()}股`} />
+                      )}
                     </div>
                   </section>
                 </div>
@@ -607,6 +712,87 @@ function DetailItem({ label, value, positive, hint }: {
               </div>
             </div>
           )}
+
+          {showIpo && ipoStatus && ipoStatus.eligible && (() => {
+            const detail = ipoStatus.conditions.detail
+            const ipoPriceYuan = Math.max(1, (detail.nav + detail.eps * detail.pe) * 0.95)
+            const floatShares = Math.round(company.total_shares * ipoFloatRatio)
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowIpo(false)}>
+                <div className="bg-bg-panel border border-border rounded-xl w-full max-w-md mx-4 p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-lg font-bold text-text-primary mb-4">发起 IPO</h3>
+
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs text-text-secondary mb-1">
+                      <span>增发比例</span>
+                      <span className="text-text-primary font-semibold">{(ipoFloatRatio * 100).toFixed(0)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.10}
+                      max={0.50}
+                      step={0.01}
+                      value={ipoFloatRatio}
+                      onChange={(e) => setIpoFloatRatio(Number(e.target.value))}
+                      className="w-full accent-accent-blue"
+                    />
+                    <div className="flex justify-between text-[11px] text-text-muted mt-0.5">
+                      <span>10%</span>
+                      <span>50%</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-bg-card rounded-lg p-3 mb-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">总股本(IPO前)</span>
+                      <span className="text-text-primary">{company.total_shares.toLocaleString()} 股</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">增发股数</span>
+                      <span className="text-accent-blue font-semibold">{floatShares.toLocaleString()} 股</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">IPO后总股本</span>
+                      <span className="text-text-primary">{(company.total_shares + floatShares).toLocaleString()} 股</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex justify-between">
+                      <span className="text-text-muted">每股净资产(NAV)</span>
+                      <span className="text-text-primary">¥{detail.nav.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">每股收益(EPS)</span>
+                      <span className="text-text-primary">¥{detail.eps.toFixed(4)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">行业PE</span>
+                      <span className="text-text-primary">{detail.pe}×</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex justify-between">
+                      <span className="text-text-muted">发行价 (95%折)</span>
+                      <span className="text-accent-gold font-bold text-base">¥{ipoPriceYuan.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">募集资金</span>
+                      <span className="text-accent-green font-semibold">¥{(floatShares * ipoPriceYuan).toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {ipoError && <p className="text-accent-red text-sm mb-3 text-center">{ipoError}</p>}
+
+                  <div className="flex gap-3">
+                    <button className="btn btn-full flex-1" onClick={() => setShowIpo(false)}>取消</button>
+                    <button
+                      className="btn btn-primary btn-full flex-1"
+                      disabled={submittingIpo}
+                      onClick={handleIpo}
+                    >
+                      {submittingIpo ? '提交中...' : '确认上市'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
         </div>
           )})()}
     </div>
