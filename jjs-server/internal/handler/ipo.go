@@ -17,15 +17,15 @@ type ipoRequest struct {
 }
 
 type ipoResponse struct {
-	Symbol         string  `json:"symbol"`
-	IpoPrice       int64   `json:"ipo_price"`
-	IpoPriceYuan   float64 `json:"ipo_price_yuan"`
-	PublicFloat    int64   `json:"public_float"`
-	NewTotalShares int64   `json:"new_total_shares"`
-	RaisedCash     float64 `json:"raised_cash"`
-	Nav            float64 `json:"nav"`
-	Eps            float64 `json:"eps"`
-}
+		Symbol         string  `json:"symbol"`
+		IpoPrice       int64   `json:"ipo_price"`
+		IpoPriceYuan   float64 `json:"ipo_price_yuan"`
+		PublicFloat    int64   `json:"public_float"`
+		NewTotalShares int64   `json:"new_total_shares"`
+		RaisedCash     int64   `json:"raised_cash"`
+		Nav            float64 `json:"nav"`
+		Eps            float64 `json:"eps"`
+	}
 
 const (
 	ipoMinQuarters        = 12
@@ -144,7 +144,7 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 	if floatShares < 1 {
 		floatShares = 1
 	}
-	raisedCash := float64(floatShares) * theoreticalPrice * 0.95
+	raisedCash := math.Round(float64(floatShares) * theoreticalPrice * 0.95)
 
 	tx := store.DB.Begin()
 
@@ -197,7 +197,7 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 		IpoPriceYuan:   math.Round(float64(ipoPrice)) / 100,
 		PublicFloat:    floatShares,
 		NewTotalShares: newTotalShares,
-		RaisedCash:     raisedCash,
+		RaisedCash:     int64(raisedCash),
 		Nav:            navYuan,
 		Eps:            epsYuan,
 	})

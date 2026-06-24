@@ -20,6 +20,18 @@ const INVESTOR_SHARES_MIN = 10000
 const INVESTOR_SHARES_MAX = 190000
 const INVEST_MIN = 1000
 
+function MetricLabel({ label, value, tooltip }: { label: string; value: string; tooltip: string }) {
+  return (
+    <div className="bg-bg-input rounded p-2 text-center relative group cursor-help">
+      <div className="text-[10px] text-text-muted">{label}</div>
+      <div className="text-xs font-semibold text-text-primary mt-0.5">{value}</div>
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">
+        {tooltip}
+      </div>
+    </div>
+  )
+}
+
 function ConditionBar({ label, item, suffix, isCurrency }: {
   label: string
   item: { met: boolean; current: number; required: number }
@@ -439,28 +451,14 @@ function DetailItem({ label, value, positive, hint }: {
                     <ConditionBar label="现金储备" item={ipoStatus.conditions.cash} suffix="¥" isCurrency />
                     <ConditionBar label="近4季营收" item={ipoStatus.conditions.annual_revenue} suffix="¥" isCurrency />
                     <div className="mt-3 pt-3 border-t border-border">
-                      <div className="flex justify-between text-xs text-text-muted mb-1">
-                        <span>估值预览</span>
-                        <span className="flex gap-1">
-                          <span className="relative group cursor-help">
-                            <span className="underline decoration-dotted underline-offset-2">NAV</span>
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">(现金 + 固定资产) ÷ 总股本</span>
-                          </span>
-                          <span>{ipoStatus.conditions.detail.nav.toFixed(2)}</span>
-                          <span className="relative group cursor-help">
-                            <span className="underline decoration-dotted underline-offset-2">EPS</span>
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">近4季平均净利润 ÷ 总股本</span>
-                          </span>
-                          <span>{ipoStatus.conditions.detail.eps.toFixed(4)}</span>
-                          <span className="relative group cursor-help">
-                            <span className="underline decoration-dotted underline-offset-2">PE</span>
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-bg-input border border-border rounded text-[11px] text-text-secondary whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">行业基准市盈率</span>
-                          </span>
-                          <span>{ipoStatus.conditions.detail.pe}×</span>
-                        </span>
+                      <div className="text-xs text-text-muted mb-2">估值预览</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <MetricLabel label="NAV" value={`¥${ipoStatus.conditions.detail.nav.toFixed(2)}`} tooltip="(现金 + 固定资产) ÷ 总股本" />
+                        <MetricLabel label="EPS" value={`¥${ipoStatus.conditions.detail.eps.toFixed(4)}`} tooltip="近4季平均净利润 ÷ 总股本" />
+                        <MetricLabel label="PE" value={`${ipoStatus.conditions.detail.pe}×`} tooltip="行业基准市盈率" />
                       </div>
                       <button
-                        className={`btn btn-full mt-2 ${ipoStatus.eligible ? 'btn-primary' : 'opacity-50 cursor-not-allowed bg-bg-card border border-border text-text-muted'}`}
+                        className={`btn btn-full mt-2 ${ipoStatus.eligible ? 'btn-primary' : 'cursor-not-allowed bg-bg-card border border-border/50 text-text-muted'}`}
                         disabled={!ipoStatus.eligible}
                         onClick={() => setShowIpo(true)}
                       >
@@ -719,7 +717,7 @@ function DetailItem({ label, value, positive, hint }: {
             const floatShares = Math.round(company.total_shares * ipoFloatRatio)
             return (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowIpo(false)}>
-                <div className="bg-bg-panel border border-border rounded-xl w-full max-w-md mx-4 p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="bg-bg-card border border-border rounded-xl w-full max-w-md mx-4 p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
                   <h3 className="text-lg font-bold text-text-primary mb-4">发起 IPO</h3>
 
                   <div className="mb-4">
@@ -773,7 +771,7 @@ function DetailItem({ label, value, positive, hint }: {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-muted">募集资金</span>
-                      <span className="text-accent-green font-semibold">¥{(floatShares * ipoPriceYuan).toLocaleString()}</span>
+                      <span className="text-accent-green font-semibold">¥{Math.round(floatShares * ipoPriceYuan).toLocaleString()}</span>
                     </div>
                   </div>
 
