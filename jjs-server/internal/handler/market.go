@@ -175,9 +175,9 @@ func (h *MarketHandler) GetKline(w http.ResponseWriter, r *http.Request) {
 
 	period := r.URL.Query().Get("period")
 	if period == "" {
-		period = "150t"
+		period = "60t"
 	}
-	if period != "40t" && period != "150t" && period != "600t" {
+	if period != "15t" && period != "60t" && period != "150t" {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "无效的K线周期"})
 		return
 	}

@@ -397,10 +397,10 @@ internal/engine/
 
 ---
 
-## P3: 核心交易引擎 (5-7 天)
+## P3: 核心交易引擎 (5-7 天) ✅ 完整完成 (2026-06-24)
 
 > **前提**: P2 公司运营 v2 完成（扩产/招人 action + 季度结算 + 股价公式）。
-> **目标**: 实现 IPO 上市、订单簿撮合、证券机构库存释放、多股票行情、K 线聚合。
+> **目标**: 实现 IPO 上市、订单簿撮合、证券机构库存释放、多股票行情、K 线聚合、WebSocket 实时推送。
 >
 > **设计依据**: `COMPANY_V2_DESIGN.md` §十六、`GAME_DESIGN.md` §2.1-2.3。
 
@@ -419,7 +419,7 @@ internal/engine/
 |------|-----|
 | 交易 tick | 2 秒 |
 | tick/季 | 150 (5分钟) |
-| K 线周期 | 40t / 150t / 600t |
+| K 线周期 | 15t(30s) / 60t(120s) / 150t(300s) |
 | 证券机构扫描间隔 | 5 tick |
 | 未成交买单超时 | 10 tick |
 
@@ -574,6 +574,61 @@ internal/engine/
 
 **产出**: 全部 REST 交易 API 可用。
 
+### P3.6: WebSocket 实时推送 ✅ 完成 (2026-06-24)
+
+**架构**: Hub/Client 模式，单 goroutine 事件循环。
+
+```
+internal/ws/
+├── hub.go          # Hub + Client 管理（Register/Unregister/Broadcast/SendToPlayer）
+└── messages.go     # BuildPriceUpdate / BuildPortfolioUpdate JSON 构造
+
+internal/handler/
+└── ws.go           # /ws 端点：query token JWT 鉴权 → HTTP Upgrade → Client 注册
+```
+
+**消息类型**:
+| 类型 | 频率 | 说明 |
+|------|------|------|
+| `price_update` | 每 2s | 全股票实时价格广播（trading_ticker → hub.Broadcast） |
+| `portfolio_update` | 成交时 | 买卖双方个人持仓刷新（matching → hub.SendToPlayer） |
+
+**技术细节**:
+- 前端 WS URL 从 `?player_id=` 改为 `?token=`（JWT 鉴权）
+- 前端 `ws.ts` 已有完整客户端（指数退避重连、pub/sub 分发）
+- Candle/Order/Trade/Holding 模型全部补齐 `json` tag，确保 API 响应字段名一致
+- Stock 模型 bid/ask 字段加显式 `column` tag 修复 GORM 命名不一致问题
+
+### P3.7: 前端交易页面 ✅ 完成 (2026-06-24)
+
+> 原计划 P7 阶段实现，实际与后端同步开发。
+
+**新增/重写文件**:
+
+| 文件 | 说明 |
+|------|------|
+| `components/TradeForm.tsx` | 买入/卖出切换，限价/市价切换，盘口填价（元→分转换），提交+结果展示 |
+| `components/KlineChart.tsx` | lightweight-charts v5 封装：Pane 0（K线+分时共享价格轴，`setData([])` 切换）+ Pane 1（成交量独立面板） |
+| `pages/MarketPage.tsx` | 左右分栏响应式：股票列表（排序）+ 详情（K线/分时/实时三种模式 + 五档盘口 + TradeForm） |
+| `pages/PortfolioPage.tsx` | 资产概览卡片 + 持仓表格（点击跳转市场 `?symbol=`）+ 挂单表格（撤单按钮） |
+
+**删除**:
+- `pages/TradePage.tsx` — 交易功能已合并到 MarketPage
+- Dock 减为 4 Tab：市场/持仓/公司/排行
+
+**图表模式**:
+| 模式 | 说明 | 成交量 |
+|------|------|--------|
+| K线 | Candlestick + OHLC + 周期选择 (15t/60t/150t) | 独立 Pane 1 正常展示 |
+| 分时 | LineSeries 连线收盘价 | 不展示 |
+| 实时 | 前端缓冲 WS `price_update` 最近 300 tick，每 2s 推点 | 不展示 |
+
+**技术决策**:
+- 图表库: `lightweight-charts@5.2`（TradingView 开源）
+- 价格单位: 前端输入元 → 提交时 `Math.round(yuan * 100)` 转分
+- K 线周期: 15t(30s) / 60t(120s) / 150t(300s)，实时模式用 WS tick 缓冲零存储
+- 移动端: 股票列表 `max-h-[35vh]`，详情区独立滚动，价格信息垂直排列+缩写
+
 ### P3 产出清单
 
 - ✅ GORM 模型: Stock/Order/Trade/Candle/BrokerInventory + Company 新增字段 (P3.1)
@@ -586,8 +641,10 @@ internal/engine/
 - ✅ 订单簿撮合引擎 (limit/market, 无做空, DB驱动) (P3.3)
 - ✅ 证券机构库存释放机制（BROKER系统账号, 每5tick, stale buys 10tick） (P3.3)
 - ✅ 2s tick 主循环 + 行情更新 (Change/ChangePercent) (P3.4)
-- ✅ K 线 40t/150t/600t 三周期聚合（成交实时更新 + tick兜底） (P3.4)
+- ✅ K 线 15t/60t/150t 三周期聚合（成交实时更新 + tick兜底） (P3.4)
 - ✅ 完整 REST API (8端点: 行情/下单/撤单/持仓/盘口/K线/挂单) (P3.5)
+- ✅ WebSocket Hub/Client + price_update 广播 + portfolio_update 单播 (P3.6)
+- ✅ MarketPage + PortfolioPage + TradeForm + KlineChart (P3.7)
 
 ---
 
@@ -660,9 +717,16 @@ internal/engine/
 
 ---
 
-## P6: API + WebSocket (3-4 天)
+## P6: API + WebSocket (1-2 天)
 
-> **目标**: 实现全部 REST API 和 WebSocket 端点，与旧版 API 完全兼容，同时新增 v2 公司端点。
+> **目标**: 实现全部 REST API 和 WebSocket 端点，与旧版 API 完全兼容。
+> **状态**: REST API 已在 P3.5 全部完成，WebSocket 已在 P3.6 完成。此阶段仅需补充管理端点和待定功能。
+
+### 已完成（P3.5 + P3.6）
+
+- ✅ 全部 8 个 REST API 端点（行情/下单/撤单/持仓/盘口/K线/挂单）
+- ✅ WebSocket Hub/Client + `price_update`(2s) + `portfolio_update`(成交时)
+- ✅ 前端 WS 客户端（指数退避重连、pub/sub、JWT token 鉴权）
 
 ### 参考旧代码 / 设计文档
 
@@ -717,9 +781,23 @@ internal/handler/
 
 ---
 
-## P7: 前端 React 重写 (8-11 天)
+## P7: 前端 React 重写 (6-8 天)
 
-> **目标**: 完整重写前端为 React SPA，UI 风格对齐旧版，功能完全对等。公司模块直接对接 v2 AP 决策面板。
+> **目标**: 完整重写前端为 React SPA，UI 风格对齐旧版，功能完全对等。
+> **状态**: 核心交易页面（Market/Portfolio）已在 P3.7 完成。剩余待做：排行榜、管理面板、通知系统。
+
+### 已完成（P3.7 + P1/P2）
+
+- ✅ AuthPage（登录/注册）
+- ✅ GameLayout（Header + Outlet + Dock 导航）
+- ✅ CompanyPage（公司仪表盘 + 经营行动弹窗 + IPO）
+- ✅ QuarterlyPage（无限滚动历史报表）
+- ✅ **MarketPage**（股票列表 + K线/分时/实时图 + 五档盘口 + 交易表单）
+- ✅ **PortfolioPage**（资产概览 + 持仓表 + 挂单表 + 撤单）
+- ✅ TradeForm（买卖切换 + 限价/市价 + 盘口填价 + 元/分转换）
+- ✅ KlineChart（lightweight-charts v5, 双面板, 三模式）
+- ✅ Dock 导航（4 Tab: 市场/持仓/公司/排行）
+- ✅ 响应式布局（移动端堆叠 + 自适应）
 
 ### 参考旧代码 / 设计文档
 
@@ -902,20 +980,15 @@ internal/handler/
 ✅ P3.3 完成 (2026-06-24): 订单簿撮合引擎（DB驱动，limit/market，冻结/释放，手续费）
 ✅ P3.4 完成 (2026-06-24): 2s交易tick（broker释放+价格更新+K线聚合），TradingTicker与季度Ticker并行
 ✅ P3.5 完成 (2026-06-24): 完整REST API（8端点：行情/下单/撤单/持仓/盘口/K线/挂单）
+✅ P3.6 完成 (2026-06-24): WebSocket Hub/Client + price_update广播 + portfolio_update单播
+✅ P3.7 完成 (2026-06-24): MarketPage + PortfolioPage + TradeForm + KlineChart（三模式双面板）
 Week 5:      P4 AI 交易者（6 类 Bot）
 Week 5-6:    P5 业务系统（融资、SEC、市场新闻、排行榜）
-Week 6-7:    P6 API + WS（含 v2 公司端点）
-Week 7-9:    P7 前端 React（含 v2 AP 决策面板）
-Week 9-10:   P8 测试与收尾（含数值验证）
+Week 6:      补完 P6 管理端点 / P7 Leaderboard + 通知面板
+Week 7-8:    P8 测试与收尾（含数值验证）
 ```
 
-> **双人并行方案** (5-6 周):
-> - Week 1: 两人一起 P1 ✅
-> - Week 1-2: 后端 P2, 前端 P7.1-P7.2 (用 mock 数据)
-> - Week 2-3: 后端 P2 收尾 + P3, 前端 P7.3-P7.4
-> - Week 3-4: 后端 P4-P5, 前端 P7.4 收尾
-> - Week 4-5: 后端 P6, 前端 P7.5 联调
-> - Week 5-6: P8 测试收尾
+> **当前实际进度**: 单人，P3 全部完成（交易引擎 + WebSocket + 前端交易页面），进入 P4。总进度约 60%。
 
 ---
 

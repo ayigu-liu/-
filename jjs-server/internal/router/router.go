@@ -10,11 +10,13 @@ import (
 	"jjs-server/internal/middleware"
 )
 
-func New(authH *handler.AuthHandler, playerH *handler.PlayerHandler, companyH *handler.CompanyHandler, marketH *handler.MarketHandler, tradeH *handler.TradeHandler) chi.Router {
+func New(authH *handler.AuthHandler, playerH *handler.PlayerHandler, companyH *handler.CompanyHandler, marketH *handler.MarketHandler, tradeH *handler.TradeHandler, wsH *handler.WsHandler) chi.Router {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 	r.Use(middleware.CORS)
+
+	r.Get("/ws", wsH.ServeWS)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health)

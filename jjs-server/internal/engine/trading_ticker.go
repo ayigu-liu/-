@@ -7,15 +7,21 @@ import (
 	"jjs-server/internal/config"
 	"jjs-server/internal/domain"
 	"jjs-server/internal/store"
+	"jjs-server/internal/ws"
 )
 
 type TradingTicker struct {
 	stopCh    chan struct{}
 	tickCount int64
+	hub       *ws.Hub
 }
 
 func NewTradingTicker() *TradingTicker {
 	return &TradingTicker{}
+}
+
+func (t *TradingTicker) SetHub(h *ws.Hub) {
+	t.hub = h
 }
 
 func (t *TradingTicker) Start() {
@@ -52,6 +58,30 @@ func (t *TradingTicker) onTick() {
 
 	t.updateAllStockPrices()
 	t.aggregateAllCandles()
+
+	if t.hub != nil {
+		t.broadcastPriceUpdate()
+	}
+}
+
+func (t *TradingTicker) broadcastPriceUpdate() {
+	stocks, err := store.ListStocks()
+	if err != nil {
+		return
+	}
+
+	companies, err := store.GetActiveCompanies()
+	if err != nil {
+		return
+	}
+
+	companyMap := make(map[string]*domain.Company, len(companies))
+	for i := range companies {
+		companyMap[companies[i].Symbol] = &companies[i]
+	}
+
+	msg := ws.BuildPriceUpdate(stocks, companyMap, t.tickCount)
+	t.hub.Broadcast(msg)
 }
 
 func (t *TradingTicker) updateAllStockPrices() {
@@ -93,9 +123,9 @@ func (t *TradingTicker) aggregateAllCandles() {
 			name    string
 			seconds int64
 		}{
-			{"40t", 80},
+			{"15t", 30},
+			{"60t", 120},
 			{"150t", 300},
-			{"600t", 1200},
 		} {
 			openTime := candleOpenTime(time.Now(), period.seconds)
 			if err := store.UpsertCandle(s.ID, period.name, openTime, s.CurrentPrice, 0); err != nil {

@@ -15,6 +15,42 @@ export interface StockInfo {
   tick: number
 }
 
+export interface StockDetailResponse {
+  id: number
+  symbol: string
+  name?: string
+  current_price: number     // 分
+  change: number
+  change_percent: number
+  open: number
+  high: number
+  low: number
+  volume: number
+  prev_close: number
+  turnover: number
+  pe: number
+  eps: number
+  nav: number
+  bids: { price: number; volume: number }[]
+  asks: { price: number; volume: number }[]
+}
+
+export interface PlaceOrderRequest {
+  symbol: string
+  type: 'limit' | 'market'
+  side: 'buy' | 'sell'
+  price: number   // 分
+  qty: number
+}
+
+export interface PlaceOrderResponse {
+  order_id: number
+  filled_qty: number
+  unfilled_qty: number
+  status: string
+  trades?: TradeRecord[]
+}
+
 export interface OrderBookLevel {
   price: number  // 分
   qty: number

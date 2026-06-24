@@ -9,7 +9,6 @@ interface DockItem {
 const items: DockItem[] = [
   { to: '/game/market', icon: '📈', label: '市场' },
   { to: '/game/portfolio', icon: '📊', label: '持仓' },
-  { to: '/game/trade', icon: '💼', label: '交易' },
   { to: '/game/company', icon: '🏢', label: '公司' },
   { to: '/game/leaderboard', icon: '🏆', label: '排行' },
 ]

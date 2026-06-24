@@ -9,7 +9,6 @@ import { AuthPage } from '@/pages/AuthPage'
 import { GameLayout } from '@/pages/GameLayout'
 import { MarketPage } from '@/pages/MarketPage'
 import { PortfolioPage } from '@/pages/PortfolioPage'
-import { TradePage } from '@/pages/TradePage'
 import { CompanyPage } from '@/pages/CompanyPage'
 import { QuarterlyPage } from '@/pages/QuarterlyPage'
 import { LeaderboardPage } from '@/pages/LeaderboardPage'
@@ -48,6 +47,9 @@ const gameRoute = createRoute({
 const marketRoute = createRoute({
   getParentRoute: () => gameRoute,
   path: '/market',
+  validateSearch: (search: Record<string, unknown>) => ({
+    symbol: typeof search.symbol === 'string' ? search.symbol : undefined,
+  }),
   component: MarketPage,
 })
 
@@ -55,12 +57,6 @@ const portfolioRoute = createRoute({
   getParentRoute: () => gameRoute,
   path: '/portfolio',
   component: PortfolioPage,
-})
-
-const tradeRoute = createRoute({
-  getParentRoute: () => gameRoute,
-  path: '/trade',
-  component: TradePage,
 })
 
 const companyRoute = createRoute({
@@ -87,7 +83,6 @@ const routeTree = rootRoute.addChildren([
   gameRoute.addChildren([
     marketRoute,
     portfolioRoute,
-    tradeRoute,
     companyRoute,
     quarterlyRoute,
     leaderboardRoute,

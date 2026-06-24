@@ -12,18 +12,18 @@ class WsClient {
   private maxReconnectDelay = 30000
 
   connect() {
-    const { playerId, isAuthenticated } = useAuthStore.getState()
-    if (!isAuthenticated || !playerId) return
+    const { token, isAuthenticated } = useAuthStore.getState()
+    if (!isAuthenticated || !token) return
 
     this.disconnect()
 
     const wsBase = import.meta.env.VITE_WS_URL
     let url: string
     if (wsBase) {
-      url = `${wsBase}?player_id=${playerId}`
+      url = `${wsBase}?token=${token}`
     } else {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      url = `${protocol}//${window.location.host}/ws?player_id=${playerId}`
+      url = `${protocol}//${window.location.host}/ws?token=${token}`
     }
 
     this.ws = new WebSocket(url)
@@ -32,8 +32,8 @@ class WsClient {
       this.reconnectAttempts = 0
       useGameStore.getState().setWsConnected(true)
 
-      const { nickname } = useAuthStore.getState()
-      this.send({ type: 'join', data: { nickname: nickname ?? playerId } })
+      const { nickname, playerId } = useAuthStore.getState()
+      this.send({ type: 'join', data: { nickname: nickname ?? playerId ?? '' } })
     }
 
     this.ws.onmessage = (event) => {

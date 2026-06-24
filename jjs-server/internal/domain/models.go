@@ -125,68 +125,68 @@ type Stock struct {
 	PE            float64   `gorm:"not null;default:0"`
 	EPS           float64   `gorm:"not null;default:0"`
 	NAV           float64   `gorm:"not null;default:0"`
-	BidPrice1     int64     `gorm:"not null;default:0"`
-	BidVol1       int64     `gorm:"not null;default:0"`
-	BidPrice2     int64     `gorm:"not null;default:0"`
-	BidVol2       int64     `gorm:"not null;default:0"`
-	BidPrice3     int64     `gorm:"not null;default:0"`
-	BidVol3       int64     `gorm:"not null;default:0"`
-	BidPrice4     int64     `gorm:"not null;default:0"`
-	BidVol4       int64     `gorm:"not null;default:0"`
-	BidPrice5     int64     `gorm:"not null;default:0"`
-	BidVol5       int64     `gorm:"not null;default:0"`
-	AskPrice1     int64     `gorm:"not null;default:0"`
-	AskVol1       int64     `gorm:"not null;default:0"`
-	AskPrice2     int64     `gorm:"not null;default:0"`
-	AskVol2       int64     `gorm:"not null;default:0"`
-	AskPrice3     int64     `gorm:"not null;default:0"`
-	AskVol3       int64     `gorm:"not null;default:0"`
-	AskPrice4     int64     `gorm:"not null;default:0"`
-	AskVol4       int64     `gorm:"not null;default:0"`
-	AskPrice5     int64     `gorm:"not null;default:0"`
-	AskVol5       int64     `gorm:"not null;default:0"`
+	BidPrice1     int64     `gorm:"column:bid_price_1;not null;default:0"`
+	BidVol1       int64     `gorm:"column:bid_vol_1;not null;default:0"`
+	BidPrice2     int64     `gorm:"column:bid_price_2;not null;default:0"`
+	BidVol2       int64     `gorm:"column:bid_vol_2;not null;default:0"`
+	BidPrice3     int64     `gorm:"column:bid_price_3;not null;default:0"`
+	BidVol3       int64     `gorm:"column:bid_vol_3;not null;default:0"`
+	BidPrice4     int64     `gorm:"column:bid_price_4;not null;default:0"`
+	BidVol4       int64     `gorm:"column:bid_vol_4;not null;default:0"`
+	BidPrice5     int64     `gorm:"column:bid_price_5;not null;default:0"`
+	BidVol5       int64     `gorm:"column:bid_vol_5;not null;default:0"`
+	AskPrice1     int64     `gorm:"column:ask_price_1;not null;default:0"`
+	AskVol1       int64     `gorm:"column:ask_vol_1;not null;default:0"`
+	AskPrice2     int64     `gorm:"column:ask_price_2;not null;default:0"`
+	AskVol2       int64     `gorm:"column:ask_vol_2;not null;default:0"`
+	AskPrice3     int64     `gorm:"column:ask_price_3;not null;default:0"`
+	AskVol3       int64     `gorm:"column:ask_vol_3;not null;default:0"`
+	AskPrice4     int64     `gorm:"column:ask_price_4;not null;default:0"`
+	AskVol4       int64     `gorm:"column:ask_vol_4;not null;default:0"`
+	AskPrice5     int64     `gorm:"column:ask_price_5;not null;default:0"`
+	AskVol5       int64     `gorm:"column:ask_vol_5;not null;default:0"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
 }
 
 type Order struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement"`
-	StockID      uint      `gorm:"index;not null"`
-	PlayerID     string    `gorm:"type:varchar(36);index;not null"`
-	Type         string    `gorm:"type:varchar(10);not null"`
-	Side         string    `gorm:"type:varchar(10);not null"`
-	Price        int64     `gorm:"not null;default:0"`
-	Qty          int64     `gorm:"not null;default:0"`
-	FilledQty    int64     `gorm:"not null;default:0"`
-	Status       string    `gorm:"type:varchar(20);not null;default:'open'"`
-	SeqNum       int64     `gorm:"not null;default:0"`
-	FrozenAmount float64   `gorm:"not null;default:0"`
-	CreatedAt    time.Time `gorm:"autoCreateTime"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
+	ID           uint      `gorm:"primaryKey;autoIncrement"                          json:"id"`
+	StockID      uint      `gorm:"index;not null"                                     json:"stock_id"`
+	PlayerID     string    `gorm:"type:varchar(36);index;not null"                    json:"-"`
+	Type         string    `gorm:"type:varchar(10);not null"                          json:"type"`
+	Side         string    `gorm:"type:varchar(10);not null"                          json:"side"`
+	Price        int64     `gorm:"not null;default:0"                                 json:"price"`
+	Qty          int64     `gorm:"not null;default:0"                                 json:"qty"`
+	FilledQty    int64     `gorm:"not null;default:0"                                 json:"filled_qty"`
+	Status       string    `gorm:"type:varchar(20);not null;default:'open'"           json:"status"`
+	SeqNum       int64     `gorm:"not null;default:0"                                 json:"-"`
+	FrozenAmount float64   `gorm:"not null;default:0"                                 json:"-"`
+	CreatedAt    time.Time `gorm:"autoCreateTime"                                     json:"created_at"`
+	UpdatedAt    time.Time `gorm:"autoUpdateTime"                                     json:"-"`
 }
 
 type Trade struct {
-	ID          uint      `gorm:"primaryKey;autoIncrement"`
-	StockID     uint      `gorm:"index;not null"`
-	BuyerID     string    `gorm:"type:varchar(36);not null"`
-	SellerID    string    `gorm:"type:varchar(36);not null"`
-	BuyOrderID  uint      `gorm:"not null;default:0"`
-	SellOrderID uint      `gorm:"not null;default:0"`
-	Price       int64     `gorm:"not null"`
-	Qty         int64     `gorm:"not null"`
-	TotalAmount int64     `gorm:"not null"`
-	TradeTime   time.Time `gorm:"not null"`
+	ID          uint      `gorm:"primaryKey;autoIncrement" json:"-"`
+	StockID     uint      `gorm:"index;not null"            json:"-"`
+	BuyerID     string    `gorm:"type:varchar(36);not null"  json:"-"`
+	SellerID    string    `gorm:"type:varchar(36);not null"  json:"-"`
+	BuyOrderID  uint      `gorm:"not null;default:0"         json:"-"`
+	SellOrderID uint      `gorm:"not null;default:0"         json:"-"`
+	Price       int64     `gorm:"not null"                   json:"price"`
+	Qty         int64     `gorm:"not null"                   json:"qty"`
+	TotalAmount int64     `gorm:"not null"     json:"total_amount"`
+	TradeTime   time.Time `gorm:"not null"     json:"trade_time"`
 }
 
 type Candle struct {
-	ID       uint      `gorm:"primaryKey;autoIncrement"`
-	StockID  uint      `gorm:"uniqueIndex:uq_candle;not null"`
-	Period   string    `gorm:"type:varchar(10);uniqueIndex:uq_candle;not null"`
-	OpenTime time.Time `gorm:"uniqueIndex:uq_candle;not null"`
-	Open     int64     `gorm:"not null"`
-	High     int64     `gorm:"not null"`
-	Low      int64     `gorm:"not null"`
-	Close    int64     `gorm:"not null"`
-	Volume   int64     `gorm:"not null;default:0"`
+	ID       uint      `gorm:"primaryKey;autoIncrement"                    json:"-"`
+	StockID  uint      `gorm:"uniqueIndex:uq_candle;not null"              json:"-"`
+	Period   string    `gorm:"type:varchar(10);uniqueIndex:uq_candle;not null" json:"-"`
+	OpenTime time.Time `gorm:"uniqueIndex:uq_candle;not null"              json:"time"`
+	Open     int64     `gorm:"not null"                                     json:"open"`
+	High     int64     `gorm:"not null"                                     json:"high"`
+	Low      int64     `gorm:"not null"                                     json:"low"`
+	Close    int64     `gorm:"not null"                                     json:"close"`
+	Volume   int64     `gorm:"not null;default:0"                           json:"volume"`
 }
 
 type BrokerInventory struct {

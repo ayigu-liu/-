@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"jjs-server/internal/config"
+	"jjs-server/internal/domain"
 	"jjs-server/internal/engine"
 	"jjs-server/internal/handler"
 	"jjs-server/internal/router"
 	"jjs-server/internal/store"
+	"jjs-server/internal/ws"
 )
 
 func main() {
@@ -36,12 +38,46 @@ func main() {
 
 	engine.RecoverSettlements()
 
+	hub := ws.NewHub()
+	go hub.Run()
+
+	engine.OnTradeExecuted = func(playerID, _ string) {
+		ps, err := store.GetPlayerState(playerID)
+		if err != nil {
+			return
+		}
+		holdings, err := store.GetHoldingsByPlayer(playerID)
+		if err != nil {
+			holdings = nil
+		}
+
+		stocksByID := make(map[uint]*domain.Stock, len(holdings))
+		for _, h := range holdings {
+			s, err := store.GetStockByID(h.StockID)
+			if err == nil {
+				stocksByID[h.StockID] = s
+			}
+		}
+
+		companies, err := store.GetActiveCompanies()
+		companyMap := make(map[string]*domain.Company, len(companies))
+		if err == nil {
+			for i := range companies {
+				companyMap[companies[i].Symbol] = &companies[i]
+			}
+		}
+
+		msg := ws.BuildPortfolioUpdate(ps.Cash, ps.FrozenCash, holdings, stocksByID, companyMap)
+		hub.SendToPlayer(playerID, msg)
+	}
+
 	authH := &handler.AuthHandler{}
 	playerH := &handler.PlayerHandler{}
 	companyH := &handler.CompanyHandler{}
 	marketH := &handler.MarketHandler{}
 	tradeH := &handler.TradeHandler{}
-	r := router.New(authH, playerH, companyH, marketH, tradeH)
+	wsH := handler.NewWsHandler(hub)
+	r := router.New(authH, playerH, companyH, marketH, tradeH, wsH)
 
 	srv := &http.Server{
 		Addr:         ":" + config.AppConfig.Port,
@@ -56,6 +92,7 @@ func main() {
 	defer ticker.Stop()
 
 	tradingTicker := engine.NewTradingTicker()
+	tradingTicker.SetHub(hub)
 	tradingTicker.Start()
 	defer tradingTicker.Stop()
 
