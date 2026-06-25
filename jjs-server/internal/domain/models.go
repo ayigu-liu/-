@@ -20,9 +20,9 @@ type User struct {
 type PlayerState struct {
 	PlayerID   string  `gorm:"type:varchar(12);primaryKey"`
 	Nickname   string  `gorm:"type:varchar(50);not null;default:''"`
-	Cash       float64 `gorm:"not null;default:0"`
-	FrozenCash float64 `gorm:"not null;default:0"`
-	MarginDebt float64 `gorm:"not null;default:0"`
+	Cash       int64 `gorm:"not null;default:0"`
+	FrozenCash int64 `gorm:"not null;default:0"`
+	MarginDebt int64 `gorm:"not null;default:0"`
 }
 
 type Company struct {
@@ -93,8 +93,8 @@ type AssetLog struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement"`
 	PlayerID  string    `gorm:"type:varchar(12);index;not null"`
 	Type      string    `gorm:"type:varchar(20);not null"`
-	Amount    float64   `gorm:"not null"`
-	Balance   float64   `gorm:"not null"`
+	Amount    int64     `gorm:"not null"`
+	Balance   int64     `gorm:"not null"`
 	Note      string    `gorm:"type:varchar(200);default:''"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
@@ -129,7 +129,7 @@ type Order struct {
 	FilledQty    int64     `gorm:"not null;default:0"                                 json:"filled_qty"`
 	Status       string    `gorm:"type:varchar(20);not null;default:'open'"           json:"status"`
 	SeqNum       int64     `gorm:"not null;default:0"                                 json:"-"`
-	FrozenAmount float64   `gorm:"not null;default:0"                                 json:"-"`
+	FrozenAmount int64     `gorm:"not null;default:0"                                 json:"-"`
 	CreatedAt    time.Time `gorm:"autoCreateTime"                                     json:"created_at"`
 	UpdatedAt    time.Time `gorm:"autoUpdateTime"                                     json:"-"`
 }

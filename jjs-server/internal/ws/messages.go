@@ -33,8 +33,8 @@ type portfolioHolding struct {
 }
 
 type portfolioData struct {
-	Cash       float64            `json:"cash"`
-	FrozenCash float64            `json:"frozenCash"`
+	Cash       int64             `json:"cash"`
+	FrozenCash int64             `json:"frozenCash"`
 	Holdings   []portfolioHolding `json:"holdings"`
 }
 
@@ -69,7 +69,7 @@ func BuildPriceUpdate(stocks []domain.Stock, companyMap map[string]*domain.Compa
 	return msg
 }
 
-func BuildPortfolioUpdate(cash, frozenCash float64, holdings []domain.Holding, stocks map[uint]*domain.Stock, companyMap map[string]*domain.Company) []byte {
+func BuildPortfolioUpdate(cash, frozenCash int64, holdings []domain.Holding, stocks map[uint]*domain.Stock, companyMap map[string]*domain.Company) []byte {
 	items := make([]portfolioHolding, 0, len(holdings))
 	for _, h := range holdings {
 		stock, ok := stocks[h.StockID]

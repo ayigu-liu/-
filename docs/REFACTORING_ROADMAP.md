@@ -387,6 +387,7 @@ internal/engine/
 - ✅ `PlayerBasicInfo` 类型 + `usePlayerInfo()` TanStack Query hook
 - ✅ Header 展示现金 / 昵称（优先使用 API 数据）
 - ✅ 注册时自动创建 PlayerState 行（`StartingCash=100,000`）
+- ✅ PlayerState 金额字段统一为 `int64` 元（`Cash`/`FrozenCash`/`MarginDebt`，股票交易中分↔元换算四舍五入），消除浮点精度问题（2026-06-25）
 
 **P2 产出清单（整体目标）**:
 - ✅ 6 行业全部参数配置完成
@@ -527,11 +528,11 @@ internal/handler/
 ```
 
 **核心设计**:
-- 资金模型: `Cash(可用) / FrozenCash(冻结)`，买单调 `FreezeCash`，成交调 `DeductFrozenCash`，撤单调 `UnfreezeCash`
+- 资金模型: `Cash(可用) / FrozenCash(冻结)`（int64 元），买单调 `FreezeCash`，成交调 `DeductFrozenCash`，撤单调 `UnfreezeCash`。冻结/解冻均检查 `RowsAffected == 0` 防止资金不足静默放行
 - 持仓模型: `Holding.Qty / FrozenQty`，卖单调入冻结，成交扣减，Order 新增 `FrozenAmount` 追踪冻结额
 - 手续费: 买方佣金 0.025%（min ¥5），卖方佣金+印花税 0.1%
 - 撮合: 价格优先→同价时间优先(SeqNum)，限价单受阻价，市价单扫全部
-- 系统账号: `PlayerID="BROKER"` 接收 Broker 卖出资金
+- 系统账号: `PlayerID="BROKER"` 接收 Broker 卖出资金。Broker 仅在买单价格 ≥ 现价 90% 时释放库存，防止低价倾销
 
 **产出**: 引擎+Store+最小API全部可用，无做空。
 
@@ -545,7 +546,7 @@ internal/engine/
 
 每 tick 流程（2s）:
 ```
-1. [每5tick] ReleaseBrokerInventory → 查stale buys → Broker按买价卖出库存
+2. [每5tick] ReleaseBrokerInventory → 查stale buys → 过滤买单价≥现价90% → Broker按买价卖出库存
 2. updateAllStockPrices → 重算 Change = CurrentPrice - PrevClose, ChangePercent
 3. aggregateAllCandles → 用当前价更新40t/150t/600t三周期蜡烛
 ```

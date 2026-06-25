@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"gorm.io/gorm"
 
 	"jjs-server/internal/config"
@@ -36,37 +38,58 @@ func GetOrCreatePlayerState(playerID, nickname string) (*domain.PlayerState, err
 	return ps, nil
 }
 
-func FreezeCash(db *gorm.DB, playerID string, amount float64) error {
+func FreezeCash(db *gorm.DB, playerID string, amount int64) error {
 	if amount <= 0 {
 		return nil
 	}
-	return db.Model(&domain.PlayerState{}).Where("player_id = ? AND cash >= ?", playerID, amount).
+	result := db.Model(&domain.PlayerState{}).Where("player_id = ? AND cash >= ?", playerID, amount).
 		Updates(map[string]interface{}{
 			"cash":        gorm.Expr("cash - ?", amount),
 			"frozen_cash": gorm.Expr("frozen_cash + ?", amount),
-		}).Error
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("资金不足")
+	}
+	return nil
 }
 
-func UnfreezeCash(db *gorm.DB, playerID string, amount float64) error {
+func UnfreezeCash(db *gorm.DB, playerID string, amount int64) error {
 	if amount <= 0 {
 		return nil
 	}
-	return db.Model(&domain.PlayerState{}).Where("player_id = ? AND frozen_cash >= ?", playerID, amount).
+	result := db.Model(&domain.PlayerState{}).Where("player_id = ? AND frozen_cash >= ?", playerID, amount).
 		Updates(map[string]interface{}{
 			"cash":        gorm.Expr("cash + ?", amount),
 			"frozen_cash": gorm.Expr("frozen_cash - ?", amount),
-		}).Error
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("冻结资金不足")
+	}
+	return nil
 }
 
-func DeductFrozenCash(db *gorm.DB, playerID string, amount float64) error {
+func DeductFrozenCash(db *gorm.DB, playerID string, amount int64) error {
 	if amount <= 0 {
 		return nil
 	}
-	return db.Model(&domain.PlayerState{}).Where("player_id = ? AND frozen_cash >= ?", playerID, amount).
-		Update("frozen_cash", gorm.Expr("GREATEST(frozen_cash - ?, 0)", amount)).Error
+	result := db.Model(&domain.PlayerState{}).Where("player_id = ? AND frozen_cash >= ?", playerID, amount).
+		Update("frozen_cash", gorm.Expr("GREATEST(frozen_cash - ?, 0)", amount))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("冻结资金不足")
+	}
+	return nil
 }
 
-func AddCash(db *gorm.DB, playerID string, amount float64) error {
+func AddCash(db *gorm.DB, playerID string, amount int64) error {
 	if amount <= 0 {
 		return nil
 	}
@@ -74,7 +97,7 @@ func AddCash(db *gorm.DB, playerID string, amount float64) error {
 		Update("cash", gorm.Expr("cash + ?", amount)).Error
 }
 
-func DeductCash(playerID string, amount float64, note string) error {
+func DeductCash(playerID string, amount int64, note string) error {
 	if amount <= 0 {
 		return nil
 	}

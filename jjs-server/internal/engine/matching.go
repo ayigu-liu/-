@@ -35,20 +35,20 @@ func updateCandlesForTrade(tx *gorm.DB, stockID uint, tradeTime time.Time, price
 	}
 }
 
-func centsToYuan(cents int64) float64 {
-	return float64(cents) / 100.0
+func centsToYuan(cents int64) int64 {
+	return (cents + 50) / 100
 }
 
-func calcCommission(tradeAmountYuan float64) float64 {
-	c := tradeAmountYuan * config.CommissionRate
+func calcCommission(tradeAmountYuan int64) int64 {
+	c := int64(math.Ceil(float64(tradeAmountYuan) * config.CommissionRate))
 	if c < config.MinCommission {
 		return config.MinCommission
 	}
 	return c
 }
 
-func calcStampTax(tradeAmountYuan float64) float64 {
-	return tradeAmountYuan * config.StampTaxRate
+func calcStampTax(tradeAmountYuan int64) int64 {
+	return int64(math.Ceil(float64(tradeAmountYuan) * config.StampTaxRate))
 }
 
 type ExecuteResult struct {
@@ -77,15 +77,17 @@ func ExecuteOrder(db *gorm.DB, order *domain.Order) (*ExecuteResult, error) {
 }
 
 func executeBuy(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*ExecuteResult, error) {
-	var estimatedCost float64
+	var estimatedCost int64
 	if order.Type == "limit" {
-		estimatedCost = centsToYuan(order.Price*order.Qty) + calcCommission(centsToYuan(order.Price*order.Qty))
+		tradeYuan := centsToYuan(order.Price * order.Qty)
+		estimatedCost = tradeYuan + calcCommission(tradeYuan)
 	} else {
 		estPrice := stock.CurrentPrice
 		if estPrice == 0 {
 			estPrice = config.InitialPrice
 		}
-		estimatedCost = centsToYuan(estPrice*order.Qty) * 1.2
+		tradeYuan := centsToYuan(estPrice * order.Qty)
+		estimatedCost = int64(math.Ceil(float64(tradeYuan) * 1.2))
 	}
 
 	if err := store.FreezeCash(tx, order.PlayerID, estimatedCost); err != nil {
@@ -113,7 +115,7 @@ func executeBuy(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*Execute
 	}
 
 	var trades []domain.Trade
-	var totalBuySpent float64
+	var totalBuySpent int64
 	remaining := order.Qty
 
 	for i := range opponentOrders {
@@ -327,7 +329,7 @@ func executeSell(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*Execut
 	}
 
 	var trades []domain.Trade
-	var totalSellRevenue float64
+	var totalSellRevenue int64
 	remaining := order.Qty
 
 	for i := range opponentOrders {
@@ -402,7 +404,7 @@ func executeSell(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*Execut
 		newStatus := "partial"
 		if opp.FilledQty >= opp.Qty {
 			newStatus = "filled"
-			if opp.FrozenAmount > 0.005 {
+			if opp.FrozenAmount > 0 {
 				remainingFrozen := opp.FrozenAmount
 				if err := store.UnfreezeCash(tx, opp.PlayerID, remainingFrozen); err != nil {
 					tx.Rollback()

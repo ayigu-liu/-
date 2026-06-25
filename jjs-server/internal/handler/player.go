@@ -15,9 +15,9 @@ type playerInfoResponse struct {
 	PlayerID      string  `json:"player_id"`
 	Nickname      string  `json:"nickname"`
 	Email         string  `json:"email"`
-	Cash          float64 `json:"cash"`
-	FrozenCash    float64 `json:"frozen_cash"`
-	MarginDebt    float64 `json:"margin_debt"`
+	Cash          int64  `json:"cash"`
+	FrozenCash    int64  `json:"frozen_cash"`
+	MarginDebt    int64  `json:"margin_debt"`
 	GlobalQuarter int64   `json:"global_quarter"`
 }
 

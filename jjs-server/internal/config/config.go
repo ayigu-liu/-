@@ -67,7 +67,7 @@ func mergeInto(dst, src *Config) {
 // --- 游戏常量（从 config.py 迁移） ---
 
 const (
-	StartingCash          = 100_000.0
+	StartingCash          = 100_000
 	PriceTickInterval     = 2 * time.Second
 	LeaderboardInterval   = 7500 * time.Millisecond
 	DBFlushInterval       = 30 * time.Second
@@ -80,7 +80,7 @@ const (
 
 	StampTaxRate       = 0.001
 	CommissionRate     = 0.00025
-	MinCommission      = 5.0
+	MinCommission      = 5
 	ShortSellFeeRate   = 0.000003
 	MarginInterestRate = 0.000003
 	MarginMinAssets    = 1_000_000

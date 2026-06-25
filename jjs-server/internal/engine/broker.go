@@ -38,6 +38,10 @@ func ReleaseBrokerInventory(db *gorm.DB) {
 				break
 			}
 
+			if buy.Price < stock.CurrentPrice*9/10 {
+				continue
+			}
+
 			unfilled := buy.Qty - buy.FilledQty
 			fillQty := unfilled
 			if fillQty > bi.TotalQty {
@@ -52,47 +56,45 @@ func ReleaseBrokerInventory(db *gorm.DB) {
 			err := func() error {
 				tx := db.Begin()
 
-				fillAmountYuan := centsToYuan(tradePrice * fillQty)
-				buyCommission := calcCommission(fillAmountYuan)
+			fillAmountYuan := centsToYuan(tradePrice * fillQty)
+			buyCommission := calcCommission(fillAmountYuan)
 
-				trade := domain.Trade{
-					StockID:     stock.ID,
-					BuyerID:     buy.PlayerID,
-					SellerID:    config.SystemBrokerID,
-					BuyOrderID:  buy.ID,
-					SellOrderID: 0,
-					Price:       tradePrice,
-					Qty:         fillQty,
-					TotalAmount: tradePrice * fillQty,
-					TradeTime:   time.Now(),
-				}
-				if err := tx.Create(&trade).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
+			trade := domain.Trade{
+				StockID:     stock.ID,
+				BuyerID:     buy.PlayerID,
+				SellerID:    config.SystemBrokerID,
+				BuyOrderID:  buy.ID,
+				SellOrderID: 0,
+				Price:       tradePrice,
+				Qty:         fillQty,
+				TotalAmount: tradePrice * fillQty,
+				TradeTime:   time.Now(),
+			}
+			if err := tx.Create(&trade).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
 
-				buyerHolding, err := store.GetOrCreateHolding(tx, buy.PlayerID, stock.ID)
-				if err != nil {
-					tx.Rollback()
-					return err
-				}
-				totalCost := int64(buyerHolding.Qty)*buyerHolding.AvgCost + tradePrice*fillQty
-				buyerHolding.Qty += fillQty
-				if buyerHolding.Qty > 0 {
-					buyerHolding.AvgCost = totalCost / buyerHolding.Qty
-				}
-				if err := tx.Save(buyerHolding).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
+			buyerHolding, err := store.GetOrCreateHolding(tx, buy.PlayerID, stock.ID)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			totalCost := int64(buyerHolding.Qty)*buyerHolding.AvgCost + tradePrice*fillQty
+			buyerHolding.Qty += fillQty
+			if buyerHolding.Qty > 0 {
+				buyerHolding.AvgCost = totalCost / buyerHolding.Qty
+			}
+			if err := tx.Save(buyerHolding).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
 
-				buyCost := fillAmountYuan + buyCommission
-				if err := store.DeductFrozenCash(tx, buy.PlayerID, buyCost); err != nil {
-					tx.Rollback()
-					// 买方冻结资金不足时，跳过
-					tx.Rollback()
-					return nil
-				}
+			buyCost := fillAmountYuan + buyCommission
+			if err := store.DeductFrozenCash(tx, buy.PlayerID, buyCost); err != nil {
+				tx.Rollback()
+				return nil
+			}
 				if err := store.UpdateOrderFrozenAmount(tx, buy.ID, buy.FrozenAmount-buyCost); err != nil {
 					tx.Rollback()
 					return nil

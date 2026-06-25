@@ -147,10 +147,10 @@ type holdingItem struct {
 }
 
 type portfolioResponse struct {
-	Cash       float64      `json:"cash"`
-	FrozenCash float64      `json:"frozen_cash"`
+	Cash       int64         `json:"cash"`
+	FrozenCash int64         `json:"frozen_cash"`
 	Holdings   []holdingItem `json:"holdings"`
-	TotalValue float64       `json:"total_value"` // 元
+	TotalValue int64         `json:"total_value"` // 元
 }
 
 func (h *TradeHandler) Portfolio(w http.ResponseWriter, r *http.Request) {
@@ -195,7 +195,7 @@ func (h *TradeHandler) Portfolio(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	totalValue := ps.Cash + float64(totalMarketValue)/100.0
+	totalValue := ps.Cash + totalMarketValue/100
 
 	WriteJSON(w, http.StatusOK, portfolioResponse{
 		Cash:       ps.Cash,

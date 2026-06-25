@@ -71,7 +71,7 @@ func GetStaleBuyOrders(stockID uint, olderThan time.Time) ([]domain.Order, error
 	return orders, err
 }
 
-func UpdateOrderFrozenAmount(tx *gorm.DB, orderID uint, frozenAmount float64) error {
+func UpdateOrderFrozenAmount(tx *gorm.DB, orderID uint, frozenAmount int64) error {
 	if frozenAmount < 0 {
 		frozenAmount = 0
 	}

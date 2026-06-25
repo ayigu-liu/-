@@ -20,7 +20,7 @@ type createCompanyRequest struct {
 	Name             string  `json:"name"`
 	Industry         string  `json:"industry"`
 	InvestorShares   int64   `json:"investor_shares"`
-	PlayerInvestment float64 `json:"player_investment"`
+	PlayerInvestment int64   `json:"player_investment"`
 }
 
 type createCompanyResponse struct {
@@ -177,7 +177,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyCash := req.PlayerInvestment / ownRatio
+	companyCash := float64(req.PlayerInvestment) / ownRatio
 
 	symbol, err := generateSymbol(req.Industry)
 	if err != nil {
