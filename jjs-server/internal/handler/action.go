@@ -120,12 +120,13 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if c.Cash < totalCost {
-		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "公司现金不足"})
-		return
+	if totalCost > 0 {
+		if c.Cash < totalCost {
+			WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "公司现金不足"})
+			return
+		}
+		c.Cash -= totalCost
 	}
-
-	c.Cash -= totalCost
 
 	var actionLogs []domain.ActionLog
 
