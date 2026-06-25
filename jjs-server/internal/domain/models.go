@@ -31,7 +31,7 @@ type Company struct {
 	Symbol             string  `gorm:"type:varchar(10);uniqueIndex;not null"`
 	Name               string  `gorm:"type:varchar(50);not null"`
 	Industry           string  `gorm:"type:varchar(20);not null;index:idx_company_industry"`
-	Cash               float64 `gorm:"not null;default:0"`
+	Cash               int64 `gorm:"not null;default:0"`
 	Employees          int     `gorm:"not null;default:0"`
 	CreatedQuarter     int     `gorm:"not null;default:1"`
 	LastSettledQuarter int     `gorm:"not null;default:0"`

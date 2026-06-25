@@ -177,7 +177,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyCash := float64(req.PlayerInvestment) / ownRatio
+	companyCash := (req.PlayerInvestment * totalShares) / ceoShares
 
 	symbol, err := generateSymbol(req.Industry)
 	if err != nil {
@@ -239,7 +239,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			ind.OperationalCostRate,
 		)
 
-		beginningCash := int64(math.Round(company.Cash))
+		beginningCash := company.Cash
 		newCash := beginningCash + result.Profit
 
 		quarterly := &domain.CompanyQuarterly{
@@ -268,7 +268,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			slog.Error("create initial quarterly failed", "error", err)
 		}
 
-		company.Cash = float64(newCash)
+		company.Cash = newCash
 		company.Inventory = result.Inventory
 		company.Demand = result.Demand
 		company.LastSettledQuarter = currentQuarter
@@ -299,7 +299,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			ind.OperationalCostRate,
 		)
 
-		beginningCash := int64(math.Round(company.Cash))
+		beginningCash := company.Cash
 		newCash := beginningCash + result.Profit
 
 		quarterly := &domain.CompanyQuarterly{
@@ -329,7 +329,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		company.CapCount = result.OreRemaining
-		company.Cash = float64(newCash)
+		company.Cash = newCash
 		company.Inventory = result.Inventory
 		company.Demand = result.Demand
 		company.LastSettledQuarter = currentQuarter
@@ -343,7 +343,7 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Symbol:         company.Symbol,
 		Name:           company.Name,
 		Industry:       company.Industry,
-		Cash:           int64(company.Cash),
+		Cash:           company.Cash,
 		Employees:      company.Employees,
 		CEOShares:      company.CEOShares,
 		InvestorShares: company.InvestorShares,
@@ -468,7 +468,7 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		Industry:         company.Industry,
 		CEOID:            company.CEOID,
 		CreatedQuarter:   company.CreatedQuarter,
-		Cash:             int64(company.Cash),
+		Cash:             company.Cash,
 		Employees:        company.Employees,
 		Status:           company.Status,
 		CEOShares:        company.CEOShares,

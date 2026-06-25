@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"math"
 	"sync/atomic"
 	"time"
 
@@ -237,7 +236,7 @@ func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float
 		cfg.OperationalCostRate,
 	)
 
-	beginningCash := int64(math.Round(c.Cash))
+	beginningCash := c.Cash
 	newCash := beginningCash + result.Profit
 
 	quarterlyRecord := domain.CompanyQuarterly{
@@ -295,7 +294,7 @@ func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float
 
 	if finalize {
 		if err := tx.Model(c).Where("id = ?", c.ID).Updates(map[string]interface{}{
-			"cash":                 float64(newCash),
+			"cash":                 newCash,
 			"inventory":            result.Inventory,
 			"demand":               result.Demand,
 			"cap_count":            c.CapCount,
@@ -322,7 +321,7 @@ func settleMining(c *domain.Company, cfg IndustryConfig, prosperity float64, qua
 		cfg.OperationalCostRate,
 	)
 
-	beginningCash := int64(math.Round(c.Cash))
+	beginningCash := c.Cash
 	newCash := beginningCash + result.Profit
 
 	quarterlyRecord := domain.CompanyQuarterly{
@@ -380,7 +379,7 @@ func settleMining(c *domain.Company, cfg IndustryConfig, prosperity float64, qua
 
 	if finalize {
 		if err := tx.Model(c).Where("id = ?", c.ID).Updates(map[string]interface{}{
-			"cash":                 float64(newCash),
+			"cash":                 newCash,
 			"inventory":            result.Inventory,
 			"cap_count":            result.OreRemaining,
 			"demand":               result.Demand,

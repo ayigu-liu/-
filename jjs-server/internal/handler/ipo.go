@@ -128,7 +128,7 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 		prosperity = 1.0
 	}
 
-	totalAssets := company.Cash + float64(company.CapCount)*cfg.CapAssetValue
+	totalAssets := float64(company.Cash) + float64(company.CapCount)*cfg.CapAssetValue
 	navYuan := totalAssets / float64(company.TotalShares)
 
 	avgProfit := totalProfit / float64(len(lastN))
@@ -144,7 +144,7 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 	if floatShares < 1 {
 		floatShares = 1
 	}
-	raisedCash := math.Round(float64(floatShares) * theoreticalPrice * 0.95)
+	raisedCash := int64(math.Round(float64(floatShares) * theoreticalPrice * 0.95))
 
 	tx := store.DB.Begin()
 
@@ -194,7 +194,7 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 		IpoPriceYuan:   math.Round(float64(ipoPrice)) / 100,
 		PublicFloat:    floatShares,
 		NewTotalShares: newTotalShares,
-		RaisedCash:     int64(raisedCash),
+		RaisedCash:     raisedCash,
 		Nav:            navYuan,
 		Eps:            epsYuan,
 	})
@@ -246,7 +246,7 @@ func ipoCheckConditions(company *domain.Company, currentQ int) (eligible bool, c
 	}
 	conditions["cash"] = map[string]any{
 		"met":      company.Cash >= ipoMinCash,
-		"current":  int64(company.Cash),
+		"current":  company.Cash,
 		"required": int64(ipoMinCash),
 	}
 	conditions["annual_revenue"] = map[string]any{
@@ -262,7 +262,7 @@ func ipoCheckConditions(company *domain.Company, currentQ int) (eligible bool, c
 		avgProfit /= float64(len(lastN))
 	}
 	conditions["detail"] = map[string]any{
-		"nav": (company.Cash + float64(company.CapCount)*engine.Industries[company.Industry].CapAssetValue) / float64(company.TotalShares),
+		"nav": (float64(company.Cash) + float64(company.CapCount)*engine.Industries[company.Industry].CapAssetValue) / float64(company.TotalShares),
 		"eps": avgProfit / float64(company.TotalShares),
 		"pe":  engine.Industries[company.Industry].PE,
 	}

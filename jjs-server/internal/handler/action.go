@@ -84,7 +84,7 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 
 	cfg := engine.Industries[c.Industry]
 
-	var totalCost float64
+	var totalCost int64
 	for _, a := range req.Actions {
 		if !validActionTypes[a.Type] {
 			WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "无效的操作类型: " + a.Type})
@@ -108,15 +108,15 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 		}
 		switch a.Type {
 		case "expand":
-			totalCost += float64(a.Amount) * cfg.CapBuildCost
+			totalCost += int64(math.Round(float64(a.Amount) * cfg.CapBuildCost))
 		case "hire":
-			totalCost += float64(a.Amount) * cfg.HireCost
+			totalCost += int64(math.Round(float64(a.Amount) * cfg.HireCost))
 		case "layoff":
-			totalCost += float64(a.Amount) * cfg.LaborRate * 3
+			totalCost += int64(math.Round(float64(a.Amount) * cfg.LaborRate * 3))
 		case "sell_assets":
 			// asset sale gives cash, not costs it
 		case "marketing":
-			totalCost += float64(a.Amount)
+			totalCost += int64(a.Amount)
 		}
 	}
 
@@ -203,7 +203,7 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 			slog.Info("layoff completed", "company", c.ID, "laidOff", a.Amount)
 
 		case "sell_assets":
-			sellCash := float64(a.Amount) * cfg.CapAssetValue * assetSellDiscount
+			sellCash := int64(math.Round(float64(a.Amount) * cfg.CapAssetValue * assetSellDiscount))
 			c.CapCount -= a.Amount
 			c.Cash += sellCash
 			actionLogs = append(actionLogs, domain.ActionLog{
@@ -262,7 +262,7 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 			cfg.BaseMaintenanceRate, cfg.OperationalCostRate,
 		)
 
-		beginningCash := int64(math.Round(c.Cash))
+		beginningCash := c.Cash
 		newCash := beginningCash + result.Profit
 
 		merged, mergeErr := engine.MergeActionLogs(existingActions, actionLogs)
@@ -313,7 +313,7 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 			cfg.BaseMaintenanceRate, cfg.OperationalCostRate,
 		)
 
-		beginningCash := int64(math.Round(c.Cash))
+		beginningCash := c.Cash
 		newCash := beginningCash + result.Profit
 
 		merged, mergeErr := engine.MergeActionLogs(existingActions, actionLogs)
@@ -363,7 +363,7 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, actionResponse{
-		Cash:      int64(math.Round(c.Cash)),
+		Cash:      c.Cash,
 		Employees: c.Employees,
 		CapCount:  c.CapCount,
 		Actions:   actionLogs,
