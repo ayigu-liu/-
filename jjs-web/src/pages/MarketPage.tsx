@@ -19,7 +19,6 @@ interface StockListResponse {
     open: number
     high: number
     low: number
-    volume: number
   }[]
 }
 
@@ -68,21 +67,15 @@ export function MarketPage() {
         price,
         change,
         changePercent,
-        open: s.open,
-        high: s.high,
-        low: s.low,
-        volume: s.volume,
-        pe: ws?.pe ?? 0,
         marketCap: ws?.marketCap ?? 0,
         sharesOutstanding: ws?.sharesOutstanding ?? 0,
-        eps: ws?.eps ?? 0,
       }
     })
   }, [rawStocks, wsStocks])
 
   const selectedSymbol = useGameStore((s) => s.selectedStock)
   const selectStock = useGameStore((s) => s.selectStock)
-  const [sortKey, setSortKey] = useState<'symbol' | 'price' | 'changePercent' | 'volume'>('symbol')
+  const [sortKey, setSortKey] = useState<'symbol' | 'price' | 'changePercent'>('symbol')
   const [sortAsc, setSortAsc] = useState(true)
   const [period, setPeriod] = useState<Period>('60t')
   const [chartType, setChartType] = useState<ChartType>('candle')
@@ -208,12 +201,6 @@ export function MarketPage() {
                   >
                     涨跌<SortArrow col="changePercent" />
                   </th>
-                  <th
-                    className="text-right py-2 px-2 cursor-pointer hover:text-text-primary hidden lg:table-cell"
-                    onClick={() => handleSort('volume')}
-                  >
-                    量<SortArrow col="volume" />
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -237,9 +224,6 @@ export function MarketPage() {
                       </td>
                       <td className={`text-right py-1.5 px-2 font-mono ${isUp ? 'text-up' : 'text-down'}`}>
                         {formatPercent(s.changePercent)}
-                      </td>
-                      <td className="text-right py-1.5 px-2 font-mono text-text-muted hidden lg:table-cell">
-                        {formatVolume(s.volume)}
                       </td>
                     </tr>
                   )
@@ -277,14 +261,11 @@ export function MarketPage() {
                   </span>
                   {(periodStats || detail) && (
                     <>
-                      <span className="text-text-muted hidden lg:inline">
-                        开 {formatPrice(periodStats?.open ?? detail?.open ?? 0)} 高 {formatPrice(periodStats?.high ?? detail?.high ?? 0)} 低 {formatPrice(periodStats?.low ?? detail?.low ?? 0)}
-                      </span>
-                      <span className="text-text-muted lg:hidden">
-                        开 {periodStats?.open != null ? formatPrice(periodStats.open) : (detail?.open ? formatPrice(detail.open) : '-')} 高 {periodStats?.high != null ? formatPrice(periodStats.high) : (detail?.high ? formatPrice(detail.high) : '-')} 低 {periodStats?.low != null ? formatPrice(periodStats.low) : (detail?.low ? formatPrice(detail.low) : '-')}
-                      </span>
-                      <span className="text-text-muted">量 {formatVolume(periodStats?.volume ?? detail?.volume ?? 0)}</span>
-                      {detail?.pe != null && detail.pe > 0 && <span className="text-text-muted">PE {detail.pe.toFixed(1)}</span>}
+                      {periodStats && (
+                        <span className="text-text-muted">
+                          开 {formatPrice(periodStats.open)} 高 {formatPrice(periodStats.high)} 低 {formatPrice(periodStats.low)} 量 {formatVolume(periodStats.volume)}
+                        </span>
+                      )}
                     </>
                   )}
                 </div>

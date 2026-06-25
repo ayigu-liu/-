@@ -152,9 +152,6 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 		CompanyID:    company.ID,
 		Symbol:       company.Symbol,
 		CurrentPrice: ipoPrice,
-		Open:         ipoPrice,
-		High:         ipoPrice,
-		Low:          ipoPrice,
 		PrevClose:    ipoPrice,
 	}
 	if err := tx.Create(stock).Error; err != nil {

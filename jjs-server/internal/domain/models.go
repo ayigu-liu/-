@@ -110,42 +110,12 @@ type ActionLog struct {
 // --- P3 交易引擎模型 ---
 
 type Stock struct {
-	ID            uint      `gorm:"primaryKey;autoIncrement"`
-	CompanyID     uint      `gorm:"uniqueIndex;not null"`
-	Symbol        string    `gorm:"type:varchar(10);uniqueIndex;not null"`
-	CurrentPrice  int64     `gorm:"not null;default:0"`
-	Change        int64     `gorm:"not null;default:0"`
-	ChangePercent float64   `gorm:"not null;default:0"`
-	Open          int64     `gorm:"not null;default:0"`
-	High          int64     `gorm:"not null;default:0"`
-	Low           int64     `gorm:"not null;default:0"`
-	PrevClose     int64     `gorm:"not null;default:0"`
-	Volume        int64     `gorm:"not null;default:0"`
-	Turnover      int64     `gorm:"not null;default:0"`
-	PE            float64   `gorm:"not null;default:0"`
-	EPS           float64   `gorm:"not null;default:0"`
-	NAV           float64   `gorm:"not null;default:0"`
-	BidPrice1     int64     `gorm:"column:bid_price_1;not null;default:0"`
-	BidVol1       int64     `gorm:"column:bid_vol_1;not null;default:0"`
-	BidPrice2     int64     `gorm:"column:bid_price_2;not null;default:0"`
-	BidVol2       int64     `gorm:"column:bid_vol_2;not null;default:0"`
-	BidPrice3     int64     `gorm:"column:bid_price_3;not null;default:0"`
-	BidVol3       int64     `gorm:"column:bid_vol_3;not null;default:0"`
-	BidPrice4     int64     `gorm:"column:bid_price_4;not null;default:0"`
-	BidVol4       int64     `gorm:"column:bid_vol_4;not null;default:0"`
-	BidPrice5     int64     `gorm:"column:bid_price_5;not null;default:0"`
-	BidVol5       int64     `gorm:"column:bid_vol_5;not null;default:0"`
-	AskPrice1     int64     `gorm:"column:ask_price_1;not null;default:0"`
-	AskVol1       int64     `gorm:"column:ask_vol_1;not null;default:0"`
-	AskPrice2     int64     `gorm:"column:ask_price_2;not null;default:0"`
-	AskVol2       int64     `gorm:"column:ask_vol_2;not null;default:0"`
-	AskPrice3     int64     `gorm:"column:ask_price_3;not null;default:0"`
-	AskVol3       int64     `gorm:"column:ask_vol_3;not null;default:0"`
-	AskPrice4     int64     `gorm:"column:ask_price_4;not null;default:0"`
-	AskVol4       int64     `gorm:"column:ask_vol_4;not null;default:0"`
-	AskPrice5     int64     `gorm:"column:ask_price_5;not null;default:0"`
-	AskVol5       int64     `gorm:"column:ask_vol_5;not null;default:0"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
+	ID           uint      `gorm:"primaryKey;autoIncrement"`
+	CompanyID    uint      `gorm:"uniqueIndex;not null"`
+	Symbol       string    `gorm:"type:varchar(10);uniqueIndex;not null"`
+	CurrentPrice int64     `gorm:"not null;default:0"`
+	PrevClose    int64     `gorm:"not null;default:0"`
+	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
 }
 
 type Order struct {

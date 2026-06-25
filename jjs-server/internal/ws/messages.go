@@ -17,14 +17,8 @@ type stockSnapshot struct {
 	Price             int64   `json:"price"`
 	Change            int64   `json:"change"`
 	ChangePercent     float64 `json:"changePercent"`
-	Open              int64   `json:"open"`
-	High              int64   `json:"high"`
-	Low               int64   `json:"low"`
-	Volume            int64   `json:"volume"`
-	PE                float64 `json:"pe"`
 	MarketCap         int64   `json:"marketCap"`
 	SharesOutstanding int64   `json:"sharesOutstanding"`
-	EPS               float64 `json:"eps"`
 }
 
 type portfolioHolding struct {
@@ -53,20 +47,20 @@ func BuildPriceUpdate(stocks []domain.Stock, companyMap map[string]*domain.Compa
 			name = c.Name
 			shares = c.TotalShares
 		}
+		change := int64(0)
+		changePct := float64(0)
+		if s.PrevClose > 0 {
+			change = s.CurrentPrice - s.PrevClose
+			changePct = float64(change) / float64(s.PrevClose) * 100
+		}
 		data[s.Symbol] = stockSnapshot{
 			Symbol:            s.Symbol,
 			Name:              name,
 			Price:             s.CurrentPrice,
-			Change:            s.Change,
-			ChangePercent:     s.ChangePercent,
-			Open:              s.Open,
-			High:              s.High,
-			Low:               s.Low,
-			Volume:            s.Volume,
-			PE:                s.PE,
+			Change:            change,
+			ChangePercent:     changePct,
 			MarketCap:         s.CurrentPrice * shares,
 			SharesOutstanding: shares,
-			EPS:               s.EPS,
 		}
 	}
 	data["tick"] = tick

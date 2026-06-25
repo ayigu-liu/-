@@ -19,16 +19,11 @@ type stockInfo struct {
 	Open         int64   `json:"open"`
 	High         int64   `json:"high"`
 	Low          int64   `json:"low"`
-	Volume       int64   `json:"volume"`
 }
 
 type stockDetail struct {
 	stockInfo
-	PrevClose int64           `json:"prev_close"`
-	Turnover  int64           `json:"turnover"`
-	PE        float64         `json:"pe"`
-	EPS       float64         `json:"eps"`
-	NAV       float64         `json:"nav"`
+	PrevClose int64            `json:"prev_close"`
 	Bids      []orderBookLevel `json:"bids"`
 	Asks      []orderBookLevel `json:"asks"`
 }
@@ -42,6 +37,23 @@ type orderBookResponse struct {
 type orderBookLevel struct {
 	Price  int64 `json:"price"`
 	Volume int64 `json:"volume"`
+}
+
+func computeChange(price, prevClose int64) (int64, float64) {
+	if prevClose <= 0 {
+		return 0, 0
+	}
+	change := price - prevClose
+	pct := float64(change) / float64(prevClose) * 100
+	return change, pct
+}
+
+func convertLevels(levels []store.OrderBookLevel) []orderBookLevel {
+	out := make([]orderBookLevel, 0, len(levels))
+	for _, l := range levels {
+		out = append(out, orderBookLevel{Price: l.Price, Volume: l.Volume})
+	}
+	return out
 }
 
 func (h *MarketHandler) ListStocks(w http.ResponseWriter, r *http.Request) {
@@ -59,16 +71,13 @@ func (h *MarketHandler) ListStocks(w http.ResponseWriter, r *http.Request) {
 
 	list := make([]stockInfo, 0, len(stocks))
 	for _, s := range stocks {
+		change, changePct := computeChange(s.CurrentPrice, s.PrevClose)
 		info := stockInfo{
 			ID:           s.ID,
 			Symbol:       s.Symbol,
 			CurrentPrice: s.CurrentPrice,
-			Change:       s.Change,
-			ChangePct:    s.ChangePercent,
-			Open:         s.Open,
-			High:         s.High,
-			Low:          s.Low,
-			Volume:       s.Volume,
+			Change:       change,
+			ChangePct:    changePct,
 		}
 
 		if ps, ok := periodStats[s.ID]; ok && ps.PeriodOpen > 0 {
@@ -98,47 +107,17 @@ func (h *MarketHandler) GetOrderBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := orderBookResponse{
+	bids, asks, err := store.GetOrderBook(stock.ID)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "获取盘口数据失败"})
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, orderBookResponse{
 		Symbol: symbol,
-		Bids:   buildOrderBookLevels(stock, "bid"),
-		Asks:   buildOrderBookLevels(stock, "ask"),
-	}
-
-	WriteJSON(w, http.StatusOK, resp)
-}
-
-func buildOrderBookLevels(s *domain.Stock, side string) []orderBookLevel {
-	if side == "bid" {
-		levels := []struct{ p, v int64 }{
-			{s.BidPrice1, s.BidVol1},
-			{s.BidPrice2, s.BidVol2},
-			{s.BidPrice3, s.BidVol3},
-			{s.BidPrice4, s.BidVol4},
-			{s.BidPrice5, s.BidVol5},
-		}
-		out := make([]orderBookLevel, 0, 5)
-		for _, l := range levels {
-			if l.v > 0 {
-				out = append(out, orderBookLevel{Price: l.p, Volume: l.v})
-			}
-		}
-		return out
-	}
-
-	levels := []struct{ p, v int64 }{
-		{s.AskPrice1, s.AskVol1},
-		{s.AskPrice2, s.AskVol2},
-		{s.AskPrice3, s.AskVol3},
-		{s.AskPrice4, s.AskVol4},
-		{s.AskPrice5, s.AskVol5},
-	}
-	out := make([]orderBookLevel, 0, 5)
-	for _, l := range levels {
-		if l.v > 0 {
-			out = append(out, orderBookLevel{Price: l.p, Volume: l.v})
-		}
-	}
-	return out
+		Bids:   convertLevels(bids),
+		Asks:   convertLevels(asks),
+	})
 }
 
 func (h *MarketHandler) GetStockDetail(w http.ResponseWriter, r *http.Request) {
@@ -154,25 +133,25 @@ func (h *MarketHandler) GetStockDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	change, changePct := computeChange(s.CurrentPrice, s.PrevClose)
+
+	bids, asks, err := store.GetOrderBook(s.ID)
+	if err != nil {
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "获取盘口数据失败"})
+		return
+	}
+
 	WriteJSON(w, http.StatusOK, stockDetail{
 		stockInfo: stockInfo{
 			ID:           s.ID,
 			Symbol:       s.Symbol,
 			CurrentPrice: s.CurrentPrice,
-			Change:       s.Change,
-			ChangePct:    s.ChangePercent,
-			Open:         s.Open,
-			High:         s.High,
-			Low:          s.Low,
-			Volume:       s.Volume,
+			Change:       change,
+			ChangePct:    changePct,
 		},
 		PrevClose: s.PrevClose,
-		Turnover:  s.Turnover,
-		PE:        s.PE,
-		EPS:       s.EPS,
-		NAV:       s.NAV,
-		Bids:      buildOrderBookLevels(s, "bid"),
-		Asks:      buildOrderBookLevels(s, "ask"),
+		Bids:      convertLevels(bids),
+		Asks:      convertLevels(asks),
 	})
 }
 

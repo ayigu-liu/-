@@ -122,18 +122,13 @@ func ReleaseBrokerInventory(db *gorm.DB) {
 					return err
 				}
 
-				if err := store.UpdateStockFromTrade(tx, stock.ID, tradePrice, fillQty, tradePrice*fillQty); err != nil {
+				if err := store.UpdateStockFromTrade(tx, stock.ID, tradePrice); err != nil {
 					tx.Rollback()
 					return err
 				}
-				updateCandlesForTrade(tx, stock.ID, time.Now(), tradePrice, fillQty)
+			updateCandlesForTrade(tx, stock.ID, time.Now(), tradePrice, fillQty)
 
-				if err := store.SnapshotOrderBook(tx, stock.ID); err != nil {
-					tx.Rollback()
-					return err
-				}
-
-				if err := tx.Commit().Error; err != nil {
+			if err := tx.Commit().Error; err != nil {
 					return err
 				}
 

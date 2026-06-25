@@ -4,10 +4,6 @@ export interface StockInfo {
   price: number          // 股价 (分, 显示时 ÷100)
   change: number
   changePercent: number
-  open: number           // 分
-  high: number           // 分
-  low: number            // 分
-  volume: number
   pe: number
   marketCap: number
   sharesOutstanding: number
@@ -25,9 +21,7 @@ export interface StockDetailResponse {
   open: number
   high: number
   low: number
-  volume: number
   prev_close: number
-  turnover: number
   pe: number
   eps: number
   nav: number

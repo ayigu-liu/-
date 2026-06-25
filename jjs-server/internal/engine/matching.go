@@ -204,7 +204,7 @@ func executeBuy(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*Execute
 		remaining -= fillQty
 		order.FilledQty += fillQty
 
-		if err := store.UpdateStockFromTrade(tx, order.StockID, tradePrice, fillQty, tradePrice*fillQty); err != nil {
+		if err := store.UpdateStockFromTrade(tx, order.StockID, tradePrice); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -258,11 +258,6 @@ func executeBuy(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*Execute
 			tx.Rollback()
 			return nil, err
 		}
-	}
-
-	if err := store.SnapshotOrderBook(tx, order.StockID); err != nil {
-		tx.Rollback()
-		return nil, err
 	}
 
 	for i := range trades {
@@ -427,7 +422,7 @@ func executeSell(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*Execut
 		remaining -= fillQty
 		order.FilledQty += fillQty
 
-		if err := store.UpdateStockFromTrade(tx, order.StockID, tradePrice, fillQty, tradePrice*fillQty); err != nil {
+		if err := store.UpdateStockFromTrade(tx, order.StockID, tradePrice); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -484,11 +479,6 @@ func executeSell(tx *gorm.DB, order *domain.Order, stock *domain.Stock) (*Execut
 				return nil, err
 			}
 		}
-	}
-
-	if err := store.SnapshotOrderBook(tx, order.StockID); err != nil {
-		tx.Rollback()
-		return nil, err
 	}
 
 	for i := range trades {
@@ -560,11 +550,6 @@ func CancelOrder(db *gorm.DB, orderID uint, playerID string) error {
 	order.Status = "cancelled"
 	order.FrozenAmount = 0
 	if err := tx.Save(order).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err := store.SnapshotOrderBook(tx, order.StockID); err != nil {
 		tx.Rollback()
 		return err
 	}

@@ -56,7 +56,6 @@ func (t *TradingTicker) onTick() {
 		go ReleaseBrokerInventory(store.DB)
 	}
 
-	t.updateAllStockPrices()
 	t.aggregateAllCandles()
 
 	if t.hub != nil {
@@ -82,31 +81,6 @@ func (t *TradingTicker) broadcastPriceUpdate() {
 
 	msg := ws.BuildPriceUpdate(stocks, companyMap, t.tickCount)
 	t.hub.Broadcast(msg)
-}
-
-func (t *TradingTicker) updateAllStockPrices() {
-	stocks, err := store.ListStocks()
-	if err != nil {
-		return
-	}
-
-	for _, s := range stocks {
-		if s.PrevClose <= 0 {
-			continue
-		}
-		change := s.CurrentPrice - s.PrevClose
-		changePct := float64(0)
-		if s.PrevClose > 0 {
-			changePct = float64(change) / float64(s.PrevClose) * 100
-		}
-		if change == s.Change && changePct == s.ChangePercent {
-			continue
-		}
-		store.DB.Model(&domain.Stock{}).Where("id = ?", s.ID).Updates(map[string]interface{}{
-			"change":         change,
-			"change_percent": changePct,
-		})
-	}
 }
 
 func (t *TradingTicker) aggregateAllCandles() {

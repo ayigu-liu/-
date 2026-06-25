@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { StockInfo, Holding, KlineBar, KlinePeriod } from '@/types'
 
-type SortKey = 'symbol' | 'price' | 'change' | 'volume'
+type SortKey = 'symbol' | 'price' | 'change'
 
 interface GameState {
   wsConnected: boolean
