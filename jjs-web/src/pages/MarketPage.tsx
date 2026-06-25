@@ -87,7 +87,7 @@ export function MarketPage() {
   const [period, setPeriod] = useState<Period>('60t')
   const [chartType, setChartType] = useState<ChartType>('candle')
   const [tickBuffer, setTickBuffer] = useState<{ time: number; value: number }[]>([])
-  const [showMobileChart, setShowMobileChart] = useState(false)
+  const [showMobileChart, setShowMobileChart] = useState(!!search.symbol)
 
   const effectivePeriod: Period = chartType === 'realtime' ? '150t' : period
 
