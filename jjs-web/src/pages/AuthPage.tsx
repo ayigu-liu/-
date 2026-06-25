@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/authStore'
 import { api } from '@/api/client'
 
@@ -14,6 +15,7 @@ interface LoginResponse {
 
 export function AuthPage() {
   const setAuth = useAuthStore((s) => s.setAuth)
+  const navigate = useNavigate()
   const [tab, setTab] = useState<AuthTab>('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -42,8 +44,7 @@ export function AuthPage() {
         nickname: data.nickname,
         isAdmin: data.is_admin,
       })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      navigate({ to: '/game/market' })
     } finally {
       setLoading(false)
     }
@@ -70,6 +71,7 @@ export function AuthPage() {
         nickname: data.nickname,
         isAdmin: data.is_admin,
       })
+      navigate({ to: '/game/market' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
@@ -179,10 +181,6 @@ export function AuthPage() {
             </button>
           </form>
         )}
-
-        <p className="text-center text-xs text-text-muted mt-4">
-          * 首次登录即自动注册
-        </p>
       </div>
     </div>
   )
