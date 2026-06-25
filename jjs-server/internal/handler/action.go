@@ -36,6 +36,7 @@ var validActionTypes = map[string]bool{
 	"hire":        true,
 	"layoff":      true,
 	"sell_assets": true,
+	"marketing":   true,
 }
 
 const assetSellDiscount = 0.75
@@ -101,6 +102,10 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 			WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "出售数量超过现有资产"})
 			return
 		}
+		if a.Type == "marketing" && cfg.MarketingDemandMin <= 0 {
+			WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "该行业暂不支持营销"})
+			return
+		}
 		switch a.Type {
 		case "expand":
 			totalCost += float64(a.Amount) * cfg.CapBuildCost
@@ -110,6 +115,8 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 			totalCost += float64(a.Amount) * cfg.LaborRate * 3
 		case "sell_assets":
 			// asset sale gives cash, not costs it
+		case "marketing":
+			totalCost += float64(a.Amount)
 		}
 	}
 
@@ -204,6 +211,25 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 				Cost:   int64(-sellCash),
 			})
 			slog.Info("assets sold", "company", c.ID, "amount", a.Amount, "cashReceived", sellCash)
+
+		case "marketing":
+			var demandPerYuan float64
+			if c.Industry == "mining" {
+				rng := engine.MiningRNG(c.ID, currentQ, "marketing", 0)
+				demandPerYuan = cfg.MarketingDemandMin + rng.Float64()*(cfg.MarketingDemandMax-cfg.MarketingDemandMin)
+			} else {
+				rng := engine.ManufacturingRNG(c.ID, currentQ, "marketing")
+				demandPerYuan = cfg.MarketingDemandMin + rng.Float64()*(cfg.MarketingDemandMax-cfg.MarketingDemandMin)
+			}
+			demandBoost := int64(math.Round(float64(a.Amount) * demandPerYuan))
+			c.Demand += demandBoost
+			actionLogs = append(actionLogs, domain.ActionLog{
+				Type:   "marketing",
+				Amount: a.Amount,
+				Actual: int(demandBoost),
+				Cost:   int64(a.Amount),
+			})
+			slog.Info("marketing completed", "company", c.ID, "investment", a.Amount, "demandBoost", demandBoost)
 		}
 	}
 
@@ -231,7 +257,7 @@ func (h *CompanyHandler) SubmitActions(w http.ResponseWriter, r *http.Request) {
 	case "manufacturing":
 		result := engine.SettleManufacturing(
 			c.ID, c.Employees, c.CapCount, c.Inventory, c.Demand,
-			prosperity, currentQ, false,
+			prosperity, currentQ,
 			cfg.BaseMaintenanceRate, cfg.OperationalCostRate,
 		)
 

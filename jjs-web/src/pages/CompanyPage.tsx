@@ -82,7 +82,7 @@ export function CompanyPage() {
   const [showQuarterly, setShowQuarterly] = useState(false)
   const [error, setError] = useState('')
   const [showActions, setShowActions] = useState(false)
-  const [actionView, setActionView] = useState<'selection' | 'expand' | 'hire' | 'layoff' | 'sell_assets'>('selection')
+  const [actionView, setActionView] = useState<'selection' | 'expand' | 'hire' | 'layoff' | 'sell_assets' | 'marketing'>('selection')
   const [actionAmount, setActionAmount] = useState(0)
   const [actionsSubmitted, setActionsSubmitted] = useState(0)
   useEffect(() => {
@@ -149,7 +149,7 @@ export function CompanyPage() {
     }
   }
 
-  const handleSubmitAction = async (type: 'expand' | 'hire' | 'layoff' | 'sell_assets', amount: number) => {
+  const handleSubmitAction = async (type: 'expand' | 'hire' | 'layoff' | 'sell_assets' | 'marketing', amount: number) => {
     if (!company) return
     setSubmittingActions(true)
     setActionError('')
@@ -327,6 +327,8 @@ function DetailItem({ label, value, positive, hint }: {
           const hireUnitCost = 3000
           const layoffUnitCost = 7500
           const assetSellPrice = isMfg ? 80000 * 0.75 : 2.0 * 0.75
+          const marketingMinPerYuan = isMfg ? 0.075 : 0.125
+          const marketingMaxPerYuan = isMfg ? 0.175 : 0.292
 
           let maxAmount: number
           let cost: number
@@ -340,10 +342,13 @@ function DetailItem({ label, value, positive, hint }: {
           } else if (actionView === 'layoff') {
             maxAmount = Math.min(company.employees, Math.floor(company.cash / layoffUnitCost))
             cost = actionAmount * layoffUnitCost
-          } else {
+          } else if (actionView === 'sell_assets') {
             maxAmount = company.cap_count
             cost = 0
             income = actionAmount * assetSellPrice
+          } else {
+            maxAmount = Math.floor(company.cash)
+            cost = actionAmount
           }
 
           const remaining = 3 - actionsSubmitted
@@ -694,6 +699,19 @@ function DetailItem({ label, value, positive, hint }: {
                         </div>
                       </button>
 
+                      <button
+                        className="w-full text-left p-4 rounded border border-border bg-bg-input hover:border-accent-gold hover:bg-accent-gold/5 transition-colors"
+                        onClick={() => { setActionView('marketing'); setActionAmount(0); setActionError('') }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">📢</span>
+                          <span className="text-sm font-semibold text-text-primary">营销推广</span>
+                        </div>
+                        <div className="text-xs text-text-muted">
+                          投入资金提升当季需求
+                        </div>
+                      </button>
+
                       {actionsSubmitted >= 3 && (
                         <p className="text-xs text-text-muted text-center">本季度操作次数已用完</p>
                       )}
@@ -709,7 +727,7 @@ function DetailItem({ label, value, positive, hint }: {
                         ← 返回
                       </button>
                       <span className="text-sm font-semibold text-text-primary">
-                        {actionView === 'expand' ? (isMfg ? '新建产线' : '勘探矿脉') : actionView === 'hire' ? '招募员工' : actionView === 'layoff' ? '裁员' : '资产处置'}
+                        {actionView === 'expand' ? (isMfg ? '新建产线' : '勘探矿脉') : actionView === 'hire' ? '招募员工' : actionView === 'layoff' ? '裁员' : actionView === 'sell_assets' ? '资产处置' : '营销推广'}
                       </span>
                     </div>
 
@@ -720,11 +738,12 @@ function DetailItem({ label, value, positive, hint }: {
                             {actionView === 'expand' ? (isMfg ? '新建产线数量' : '勘探次数')
                               : actionView === 'hire' ? '招募岗位数'
                               : actionView === 'layoff' ? '裁员人数'
-                              : isMfg ? '出售产线数' : '出售矿权数'}
+                              : actionView === 'sell_assets' ? (isMfg ? '出售产线数' : '出售矿权数')
+                              : '投入金额'}
                           </span>
                           <span className="text-text-primary font-semibold">
                             {actionAmount.toLocaleString()}{' '}
-                            {actionView === 'expand' ? (isMfg ? '条' : '次') : actionView === 'sell_assets' ? (isMfg ? '条' : '单位') : '人'}
+                            {actionView === 'expand' ? (isMfg ? '条' : '次') : actionView === 'sell_assets' ? (isMfg ? '条' : '单位') : actionView === 'marketing' ? '¥' : '人'}
                           </span>
                         </div>
                         <input
@@ -756,8 +775,12 @@ function DetailItem({ label, value, positive, hint }: {
                                 <span>当前 {company.employees} 人 → {company.employees - actionAmount} 人</span>
                               )}
                             </>
-                          ) : (
+                          ) : actionView === 'sell_assets' ? (
                             <span>{isMfg ? `¥${Math.round(80000 * 0.75).toLocaleString()}/条 · 当前 ${company.cap_count} 条` : `¥${(2.0 * 0.75).toFixed(1)}/单位 · 当前 ${company.cap_count.toLocaleString()} 单位`}</span>
+                          ) : actionAmount > 0 ? (
+                            <span>预计提升 {Math.round(actionAmount * marketingMinPerYuan).toLocaleString()}~{Math.round(actionAmount * marketingMaxPerYuan).toLocaleString()} {isMfg ? '件' : '单位'} 需求</span>
+                          ) : (
+                            <span>{isMfg ? '每¥1投入 = 0.075~0.175 件需求增量' : '每¥1投入 = 0.125~0.292 单位需求增量'}</span>
                           )}
                         </div>
                       </div>
@@ -791,6 +814,8 @@ function DetailItem({ label, value, positive, hint }: {
                           ? '操作次数已用完'
                           : submittingActions
                           ? '提交中...'
+                          : actionView === 'marketing'
+                          ? '确认投入'
                           : '提交'}
                       </button>
                     </div>

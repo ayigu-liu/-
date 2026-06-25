@@ -227,7 +227,7 @@ export interface RandomEvent {
 }
 
 export interface ActionItem {
-  type: 'expand' | 'hire' | 'layoff' | 'sell_assets'
+  type: 'expand' | 'hire' | 'layoff' | 'sell_assets' | 'marketing'
   amount: number
 }
 

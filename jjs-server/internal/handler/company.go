@@ -235,7 +235,6 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 			company.Demand,
 			prosperity,
 			currentQuarter,
-			false,
 			ind.BaseMaintenanceRate,
 			ind.OperationalCostRate,
 		)

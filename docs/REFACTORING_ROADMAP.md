@@ -316,7 +316,8 @@ Profit           = Revenue - TotalCost
 - 每次「招募」= 1 个操作位 + 滑动条选择 N 个岗位 → `Employees += round(N × random(0.3~1.0))`（岗位制：上限=岗位数，下限30%）
 - 每次「裁员」= 1 个操作位 + 滑动条选择 N 人 → `Employees -= N`，成本 = `N × LaborRate × 3`（3倍季度工资补偿），可裁至0人
 - 每次「资产处置」= 1 个操作位 + 滑动条选择 N → `CapCount -= N`，获得现金 = `N × CapAssetValue × 0.75`（折价75%），制造业出售产线、矿业出售矿权
-- 资本类动作（分红/回购/营销）暂无实现
+- 每次「营销」= 1 个操作位 + 滑动条投入金额 → `Company.Cash -= 投入`，`Company.Demand += round(投入 × random(MarketingDemandMin, MarketingDemandMax))`。制造业每1¥ = 0.075~0.175需求，矿业每1¥ = 0.125~0.292需求，当场生效（结算时受产能封顶截断）
+- 资本类动作（分红/回购）暂无实现
 
 **建造队列结算**（`engine/ticker.go:processBuildQueue` + `processAllBuildQueues`）:
 - **季度初**：`processAllBuildQueues(newQ)` 在季度推进后、`preGenerateQuarter` 前立即处理 `ready_quarter <= newQ` 的待完成订单，更新 `companies.cap_count`
@@ -341,7 +342,7 @@ Profit           = Revenue - TotalCost
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
-| POST | `/api/company/actions` | JWT | 提交本季经营操作。Body: `{actions: [{type, amount}]}`，type ∈ {expand, hire, layoff, sell_assets}，累计 ≤ 3 次/季 |
+| POST | `/api/company/actions` | JWT | 提交本季经营操作。Body: `{actions: [{type, amount}]}`，type ∈ {expand, hire, layoff, sell_assets, marketing}，累计 ≤ 3 次/季 |
 
 **前端**:
 - `CompanyPage.tsx`：仪表盘新增「经营行动」弹窗——按钮放在经营指标面板底部；弹窗分两步（选择操作类型 → 滑动调数量 + 提交）。前端本地计数器追踪已用次数（关弹窗归零），后端做最终校验

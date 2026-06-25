@@ -215,16 +215,16 @@ func settleCompanyBaseline(c *domain.Company, quarter int, finalize bool) error 
 	}
 
 	if c.Industry == "manufacturing" {
-		return settleManufacturing(c, cfg, prosperity, quarter, false, finalize)
+		return settleManufacturing(c, cfg, prosperity, quarter, finalize)
 	}
 	if c.Industry == "mining" {
-		return settleMining(c, cfg, prosperity, quarter, false, finalize)
+		return settleMining(c, cfg, prosperity, quarter, finalize)
 	}
 
 	return nil
 }
 
-func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float64, quarter int, marketing bool, finalize bool) error {
+func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float64, quarter int, finalize bool) error {
 	result := SettleManufacturing(
 		c.ID,
 		c.Employees,
@@ -233,7 +233,6 @@ func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float
 		c.Demand,
 		prosperity,
 		quarter,
-		marketing,
 		cfg.BaseMaintenanceRate,
 		cfg.OperationalCostRate,
 	)
@@ -310,7 +309,7 @@ func settleManufacturing(c *domain.Company, cfg IndustryConfig, prosperity float
 	return tx.Commit().Error
 }
 
-func settleMining(c *domain.Company, cfg IndustryConfig, prosperity float64, quarter int, marketing bool, finalize bool) error {
+func settleMining(c *domain.Company, cfg IndustryConfig, prosperity float64, quarter int, finalize bool) error {
 	result := SellMining(
 		c.ID,
 		c.Employees,

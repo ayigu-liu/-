@@ -6,14 +6,12 @@ import (
 )
 
 const (
-	mfgUnitOutput           = 2000  // 件/工人/季
-	mfgUnitPrice            = 20.0  // 基础单价 ¥/件
-	mfgLineCeiling          = 10000 // 件/产线/季
-	mfgWarehouseCostRate    = 0.5   // ¥/件/季 仓储费
-	mfgLaborRate            = 2500  // ¥/工人/季 工资
-	mfgMarketingMin         = 1500  // 营销效果下限 (件)
-	mfgMarketingMax         = 3500  // 营销效果上限 (件)
-	mfgDemandCapMultiplier  = 2.0   // 需求上限 = 产能 × 倍数
+	mfgUnitOutput          = 2000  // 件/工人/季
+	mfgUnitPrice           = 20.0  // 基础单价 ¥/件
+	mfgLineCeiling         = 10000 // 件/产线/季
+	mfgWarehouseCostRate   = 0.5   // ¥/件/季 仓储费
+	mfgLaborRate           = 2500  // ¥/工人/季 工资
+	mfgDemandCapMultiplier = 2.0   // 需求上限 = 产能 × 倍数
 )
 
 func CapacityCeiling(industry string, capCount int) int64 {
@@ -71,7 +69,6 @@ func SettleManufacturing(
 	prevDemand int64,
 	prosperity float64,
 	quarter int,
-	marketing bool,
 	baseMaintenanceRate int64,
 	operationalCostRate int64,
 ) ManufacturingResult {
@@ -89,12 +86,6 @@ func SettleManufacturing(
 	demandCap := (prodQty + float64(prevInventory)) * mfgDemandCapMultiplier
 	if demand > demandCap {
 		demand = demandCap
-	}
-
-	if marketing {
-		marketingRNG := ManufacturingRNG(companyID, quarter, "marketing")
-		marketingEffect := marketingRNG.Float64()*(mfgMarketingMax-mfgMarketingMin) + mfgMarketingMin
-		demand += marketingEffect
 	}
 	demandInt := int64(math.Ceil(math.Max(demand, 0)))
 

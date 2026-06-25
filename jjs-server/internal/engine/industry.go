@@ -18,6 +18,10 @@ type IndustryConfig struct {
 	HireCost             float64
 	LaborRate            float64
 
+	// 营销: 每¥1投入的需求增量范围
+	MarketingDemandMin float64
+	MarketingDemandMax float64
+
 	// 景气度游走参数 (中心=1.0)
 	ProsperityMin        float64
 	ProsperityMax        float64
@@ -61,6 +65,8 @@ var Industries = map[string]IndustryConfig{
 		OperationalCostRate:  1700,
 		HireCost:             5000,
 		LaborRate:            2000,
+		MarketingDemandMin:   0,
+		MarketingDemandMax:   0,
 		ProsperityMin:        0.65,
 		ProsperityMax:        1.35,
 		ProsperityMaxStep:    0.09,
@@ -86,6 +92,8 @@ var Industries = map[string]IndustryConfig{
 		OperationalCostRate:  3000,
 		HireCost:             3000,
 		LaborRate:            3000,
+		MarketingDemandMin:   0,
+		MarketingDemandMax:   0,
 		ProsperityMin:        0.75,
 		ProsperityMax:        1.25,
 		ProsperityMaxStep:    0.06,
@@ -111,6 +119,8 @@ var Industries = map[string]IndustryConfig{
 		OperationalCostRate:  2000,
 		HireCost:             3000,
 		LaborRate:            2500,
+		MarketingDemandMin:   0.075,
+		MarketingDemandMax:   0.175,
 		ProsperityMin:        0.80,
 		ProsperityMax:        1.20,
 		ProsperityMaxStep:    0.05,
@@ -136,6 +146,8 @@ var Industries = map[string]IndustryConfig{
 		OperationalCostRate:  1200,
 		HireCost:             3000,
 		LaborRate:            2500,
+		MarketingDemandMin:   0.125,
+		MarketingDemandMax:   0.292,
 		ProsperityMin:        0.72,
 		ProsperityMax:        1.28,
 		ProsperityMaxStep:    0.07,
@@ -161,6 +173,8 @@ var Industries = map[string]IndustryConfig{
 		OperationalCostRate:  1500,
 		HireCost:             3000,
 		LaborRate:            2500,
+		MarketingDemandMin:   0,
+		MarketingDemandMax:   0,
 		ProsperityMin:        0.88,
 		ProsperityMax:        1.12,
 		ProsperityMaxStep:    0.04,
@@ -186,6 +200,8 @@ var Industries = map[string]IndustryConfig{
 		OperationalCostRate:  3000,
 		HireCost:             3000,
 		LaborRate:            3000,
+		MarketingDemandMin:   0,
+		MarketingDemandMax:   0,
 		ProsperityMin:        0.88,
 		ProsperityMax:        1.16,
 		ProsperityMaxStep:    0.04,
