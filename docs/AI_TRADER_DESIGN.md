@@ -97,6 +97,8 @@ type FactorContext struct {
 |---|--------|---------|---------|
 | F12 | **noise** | `random(-1, +1)` | 纯随机扰动 |
 
+> **PE 动态计算**：PE 从 CompanyQuarterly 实时计算，不存储在 Stock 表中。`EPS_季均 = avg(近4季 Profit) / TotalShares`，`PE = CurrentPrice / EPS_季均`。F1 pe_discount 使用此动态 PE 与 `IndustryConfig.PE` 对比。
+
 ---
 
 ## 四、策略权重配置
@@ -162,45 +164,90 @@ marketSentiment ∈ [-1, 1]
 
 15% 的情绪传导模拟信息级联（Information Cascade）——所有 AI 都轻微跟风市场情绪。既不过度同质化（仍由因子主导），又能产生趋势自我强化。
 
+### 5.3 信号扰动与反转
+
+为防止所有 AI 同向操作导致零成交，对 finalSignal 做两层随机干预：
+
+```
+finalSignal = finalSignal + ε × random(-1, 1)    // ε = 0.15，小幅抖动
+if random() < 15%:
+    finalSignal = randomDirection × random(0.21, 0.50)  // 强制随机翻转
+```
+
+- **抖动**：弱信号区间（0.2-0.4）可能翻转方向，形成自然对手盘
+- **抽签翻转**：每 tick 15% 的决策完全忽略因子，随机选择买卖方向和中等强度信号，确保任何时候都有人在卖
+
 ---
 
 ## 六、下单决策
 
-### 6.1 信号阈值
+### 6.1 信号阈值与订单类型
 
 ```
 |finalSignal| ≤ 0.2  →  不操作
- finalSignal  > 0.2  →  限价买入
- finalSignal  < -0.2 →  限价卖出
+ finalSignal  > 0.2  →  买入
+ finalSignal  < -0.2 →  卖出
+
+|信号| > 0.5  →  市价单（强信心，立即成交跨价差）
+|信号| ≤ 0.5  →  限价单（弱信心，挂单提供流动性）
 ```
 
 ### 6.2 买入规模
 
 ```go
-maxSpend = availableCash × riskTolerance × |finalSignal|
-qty      = min(maxSpend / limitPrice, positionLimit - currentHolding)
-qty      = min(qty, MaxOrderQty)
-qty      = max(qty, 100)  // 最低 100 股
-if qty < 100 → 不买入
+availableCash = Cash - FrozenCash
+maxSpend      = availableCash × riskTolerance × |finalSignal|
+qty           = maxSpend / referencePrice
+qty           = clamp(qty, 100, MaxOrderQty)
 ```
 
 ### 6.3 卖出规模
 
 ```go
-maxSell = availableQty × riskTolerance × |finalSignal|
-qty     = min(maxSell, MaxOrderQty)
-qty     = max(qty, 100)
-if qty < 100 → 不卖出
+availableQty = Holding.Qty - Holding.FrozenQty
+maxSell      = availableQty × riskTolerance × |finalSignal|
+qty          = clamp(maxSell, 100, MaxOrderQty)
 ```
 
-### 6.4 限价单价格
+### 6.4 限价单价格（信号驱动宽幅报价）
+
+报价不再固定在现价附近，而是由信号强度决定浮动范围：
 
 ```
-买入限价 = 现价 × random(0.970, 0.995)
-卖出限价 = 现价 × random(1.005, 1.030)
+basePrice = CurrentPrice
+maxSpread = 0.30 (30%)
+
+买入:
+  maxPremium  = |signal| × maxSpread        // 强信号报价接近甚至超过现价
+  maxDiscount = (1 - |signal|) × maxSpread   // 弱信号报价大幅低于现价
+  price = basePrice × random(1 - maxDiscount, 1 + maxPremium)
+
+卖出:
+  maxDiscount = |signal| × maxSpread
+  maxPremium  = (1 - |signal|) × maxSpread
+  price = basePrice × random(1 - maxDiscount, 1 + maxPremium)
 ```
 
-信号越强 → 价格越激进（取随机范围的上/下限）。
+| |signal| | 买单范围 | 卖单范围 | 行为 |
+|:---:|------|------|------|
+| 0.90 | 97%~127% | 73%~103% | 买卖区间大幅重叠，大概率跨价差成交 |
+| 0.50 | 85%~115% | 85%~115% | 区间完全重叠，快速定价 |
+| 0.21 | 76%~106% | 94%~124% | 重叠极小，提供远端买卖盘 |
+
+### 6.5 撤单策略
+
+每 tick 评估已挂订单，不会无条件全部撤销：
+
+```
+对每个挂单:
+  ├─ 股票不存在或价格归零 → 撤
+  ├─ 挂单存活 > 120s → 撤（硬超时）
+  ├─ 买单: (现价 - 挂单价) / 现价 > 5% → 撤（价格已远离）
+  ├─ 卖单: (挂单价 - 现价) / 现价 > 5% → 撤
+  └─ 上述均不满足 → 保留（等待成交）
+```
+
+宽幅报价 + 5% 撤单阈值确保订单有足够时间被对手盘吃下。保留的订单仍冻结资金/持仓，新订单量由 `可用资金 - 冻结` / `可用持仓 - 冻结` 自动控制。
 
 ---
 
@@ -209,9 +256,10 @@ if qty < 100 → 不卖出
 ```
 ScheduleTick(db) 每 2s 触发一次:
 
-  [t0] 选到期 AI:
-       遍历 100 个 AiTrader, CoolDownLeft == 0 → ready[]
-       log: 到期数 + 耗时
+   [t0] 选到期 AI:
+        遍历 100 个 AiTrader, CoolDownLeft == 0 → ready[]
+        对每个 ready trader: 撤销其全部未成交挂单（释放资金/持仓）
+        log: 到期数 + 耗时
 
   [t1] 采样股票 + 构建上下文:
        对每个 ready trader:
@@ -240,9 +288,41 @@ ScheduleTick(db) 每 2s 触发一次:
 
 ---
 
-## 八、生命周期
+## 八、止损闸门
 
-### 8.1 初始化
+止损是独立的风险闸门，在因子计算**之前**执行。触发止损的股票跳过本轮因子计算。
+
+### 8.1 止损条件
+
+```
+if holding != nil && holding.Qty > 0:
+    gainPct = (currentPrice - avgCost) / avgCost
+    threshold = -(0.25 + riskTolerance × 0.60)   // [-34%, -61%]
+    if gainPct < threshold:
+        → 市价全平该持仓
+        → 跳过该股票的因子计算
+```
+
+### 8.2 阈值范围
+
+| RiskTolerance | 止损线 | 含义 |
+|:---:|:---:|---|
+| 0.15（低） | -34% | 略高于死扛触发线(-30%)，低容忍 bot 先于死扛出场 |
+| 0.35（中） | -46% | 有空间触发死扛 + 网格补仓 1-2 次后才止损 |
+| 0.60（高） | -61% | 深度套牢时才止损，给足逆向策略操作空间 |
+
+### 8.3 与行为因子的关系
+
+止损不改变死扛/网格/恐高因子的计算逻辑。时序自然分层：
+- 浮亏 30% → 死扛因子触发买入（因子阶段）
+- 浮亏 46% → 止损闸门触发全平（因子前阶段，中容忍 bot）
+- 下单方式为市价卖，确保立即成交离场
+
+---
+
+## 九、生命周期
+
+### 9.1 初始化
 
 ```go
 func spawnTrader(strategy *Strategy) *AiTrader {
@@ -259,37 +339,32 @@ func spawnTrader(strategy *Strategy) *AiTrader {
 }
 ```
 
-### 8.2 退出检查
+### 9.2 耗尽重置
 
-每 tick 结束后：
+不删除 PlayerState 行（保留历史交易记录），直接重置同一 bot_id：
 
 ```go
 if playerState.Cash < 10_000 && holdingValue == 0 {
-    // 1 万以下现金 + 零持仓 → 标记退出
-    markDepleted(trader)
-    // 不删除 PlayerState 行，保留历史交易记录
+    // 充值随机资金
+    playerState.Cash = randomRange(500_000, 50_000_000)
+    playerState.FrozenCash = 0
+    // 重新分配策略 + 参数
+    trader.Strategy = weightedPick(strategyDistribution)
+    trader.CooldownTicks = randomRange(5, 30)
+    trader.RiskTolerance = randomRange(0.15, 0.60)
+    trader.CoolDownLeft = 0
 }
 ```
 
-### 8.3 补充新生
+### 9.3 补给检查
 
-每 100 tick（~200s）检查一次：
+每 100 tick（~200s）检查一次，遍历所有 100 个 bot，对耗尽的执行重置。
 
-```go
-if activeTraders < 100 {
-    deficit := 100 - activeTraders
-    for i := 0; i < deficit; i++ {
-        strategy := weightedPick(strategyDistribution)
-        spawnTrader(strategy)
-    }
-}
-```
-
-新 AI 随机分配策略，起始资金重新随机。
+> **Strategy 不持久化**：重启恢复时，所有 bot 的 Strategy 随机重新分配。PlayerState/Holding 持久化保留 bot 的财务状态。
 
 ---
 
-## 九、统计与监控
+## 十、统计与监控
 
 ### 9.1 内存计数器
 
@@ -333,21 +408,23 @@ GET /api/admin/bots/traders      → 各策略存活数/收益率汇总
 
 ---
 
-## 十、目录结构
+## 十一、目录结构
 
 ```
-jjs-server/internal/engine/bots/
+jjs-server/internal/bots/
 ├── ai_trader.go     # AiTrader struct + Strategy 权重预设 + 初始化
 ├── factors.go       # 12 因子计算函数（分理性/非理性注释）
 ├── scheduler.go     # ScheduleTick: 分层耗时日志 + 情绪指数更新
-├── lifecycle.go     # 零持仓初始化 + 枯竭退出 + 新生补充
+├── lifecycle.go     # 零持仓初始化 + 枯竭重置 + 新生补充
 ├── sentiment.go     # 市场情绪指数计算 + EMA 平滑
-└── metrics.go       # BotMetrics 实时计数器 + TraderStats
+├── stoploss.go      # 止损闸门（RiskTolerance 联动）
+├── metrics.go       # BotMetrics 实时计数器 + 订单构建
+└── helpers.go       # PlayerState/Holding 缓存辅助
 ```
 
 ---
 
-## 十一、关键常量
+## 十二、关键常量
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
@@ -358,9 +435,14 @@ jjs-server/internal/engine/bots/
 | 采股比例 | 20% | 全市场随机采样，上限 20 支 |
 | 最少采股数 | 3 | 全市场 < 15 支时触发 |
 | 信号阈值 | 0.2 | \|signal\| > 0.2 才下单 |
+| 市价单阈值 | 0.5 | \|signal\| > 0.5 用市价单 |
+| 报价最大偏离 | 30% | 信号驱动宽幅报价上限 |
 | 情绪传导系数 | 0.15 | finalSignal = 0.85×raw + 0.15×sentiment |
 | 情绪 EMA 系数 | 0.3 | sentiment = 0.7×old + 0.3×new |
-| 退出现金阈值 | ¥100 (10,000分) | 现金 + 持仓为零时退出 |
-| 补充检查间隔 | 100 tick | ~200s |
-| 买入限价折扣 | 97.0%~99.5% | 低于现价限价买入 |
-| 卖出限价溢价 | 100.5%~103.0% | 高于现价限价卖出 |
+| 信号抖动幅度 | 0.15 | finalSignal += random(-0.15, +0.15) |
+| 随机翻转比例 | 15% | 每 tick 随机忽略信号选方向 |
+| 止损基准偏移 | 0.25 | threshold = -(0.25 + RT×0.60) |
+| 退出现金阈值 | ¥100 (10,000分) | 现金 + 持仓为零时重置 |
+| 补给检查间隔 | 100 tick | ~200s |
+| 撤单偏差阈值 | 5% | 挂单价偏离市价 > 5% 时撤单 |
+| 撤单最大年龄 | 120s | 挂单硬超时 |

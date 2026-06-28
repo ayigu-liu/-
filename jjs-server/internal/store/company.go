@@ -104,3 +104,28 @@ func GetPendingUncompletedBuildOrders(companyID uint, quarter int) ([]domain.Cap
 func CompleteBuildOrder(id uint) error {
 	return DB.Model(&domain.CapBuildOrder{}).Where("id = ?", id).Update("completed", true).Error
 }
+
+func GetQuarterliesByCompanyIDs(ids []uint, limit int) (map[uint][]domain.CompanyQuarterly, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var qs []domain.CompanyQuarterly
+	err := DB.Raw(`
+		SELECT * FROM (
+			SELECT *,
+				ROW_NUMBER() OVER (PARTITION BY company_id ORDER BY quarter DESC) as _rn
+			FROM company_quarterly
+			WHERE company_id IN ?
+		) t WHERE _rn <= ?
+		ORDER BY company_id, quarter DESC
+	`, ids, limit).Scan(&qs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[uint][]domain.CompanyQuarterly, len(ids))
+	for _, q := range qs {
+		result[q.CompanyID] = append(result[q.CompanyID], q)
+	}
+	return result, nil
+}

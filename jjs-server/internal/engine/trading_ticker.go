@@ -4,16 +4,23 @@ import (
 	"log/slog"
 	"time"
 
+	"gorm.io/gorm"
+
 	"jjs-server/internal/config"
 	"jjs-server/internal/domain"
 	"jjs-server/internal/store"
 	"jjs-server/internal/ws"
 )
 
+type BotRunner interface {
+	ScheduleTick(db *gorm.DB)
+}
+
 type TradingTicker struct {
 	stopCh    chan struct{}
 	tickCount int64
 	hub       *ws.Hub
+	botRunner BotRunner
 }
 
 func NewTradingTicker() *TradingTicker {
@@ -22,6 +29,10 @@ func NewTradingTicker() *TradingTicker {
 
 func (t *TradingTicker) SetHub(h *ws.Hub) {
 	t.hub = h
+}
+
+func (t *TradingTicker) SetBotRunner(b BotRunner) {
+	t.botRunner = b
 }
 
 func (t *TradingTicker) Start() {
@@ -57,6 +68,10 @@ func (t *TradingTicker) onTick() {
 	}
 
 	t.aggregateAllCandles()
+
+	if t.botRunner != nil {
+		t.botRunner.ScheduleTick(store.DB)
+	}
 
 	if t.hub != nil {
 		t.broadcastPriceUpdate()

@@ -86,3 +86,73 @@ func GetCandles(stockID uint, period string, limit int) ([]domain.Candle, error)
 		Find(&candles).Error
 	return candles, err
 }
+
+func GetRecentClosePrices(stockID uint, limit int) ([]int64, error) {
+	var prices []int64
+	err := DB.Model(&domain.Candle{}).
+		Where("stock_id = ? AND period = ?", stockID, "15t").
+		Order("open_time DESC").
+		Limit(limit).
+		Pluck("close", &prices).Error
+	return prices, err
+}
+
+func GetRecentVolumes(stockID uint, limit int) ([]int64, error) {
+	var volumes []int64
+	err := DB.Model(&domain.Candle{}).
+		Where("stock_id = ? AND period = ?", stockID, "15t").
+		Order("open_time DESC").
+		Limit(limit).
+		Pluck("volume", &volumes).Error
+	return volumes, err
+}
+
+func GetRecentClosePricesAll(limit int) (map[uint][]int64, error) {
+	rows, err := DB.Raw(`
+		SELECT stock_id, close FROM (
+			SELECT stock_id, close,
+				ROW_NUMBER() OVER (PARTITION BY stock_id ORDER BY open_time DESC) as rn
+			FROM candles WHERE period = '15t'
+		) t WHERE rn <= ?
+	`, limit).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[uint][]int64)
+	for rows.Next() {
+		var stockID uint
+		var price int64
+		if err := rows.Scan(&stockID, &price); err != nil {
+			return nil, err
+		}
+		result[stockID] = append(result[stockID], price)
+	}
+	return result, nil
+}
+
+func GetRecentVolumesAll(limit int) (map[uint][]int64, error) {
+	rows, err := DB.Raw(`
+		SELECT stock_id, volume FROM (
+			SELECT stock_id, volume,
+				ROW_NUMBER() OVER (PARTITION BY stock_id ORDER BY open_time DESC) as rn
+			FROM candles WHERE period = '15t'
+		) t WHERE rn <= ?
+	`, limit).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[uint][]int64)
+	for rows.Next() {
+		var stockID uint
+		var volume int64
+		if err := rows.Scan(&stockID, &volume); err != nil {
+			return nil, err
+		}
+		result[stockID] = append(result[stockID], volume)
+	}
+	return result, nil
+}

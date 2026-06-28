@@ -91,4 +91,32 @@ const (
 	BrokerScanTicks  = 5
 	StaleOrderTicks  = 10
 	SystemBrokerID   = "BROKER"
+
+	// AI 交易者
+	AiTraderCount            = 100
+	AiTraderInitCashMin      int64 = 500_000
+	AiTraderInitCashMax      int64 = 50_000_000
+	AiTraderCooldownMin      = 5
+	AiTraderCooldownMax      = 30
+	AiTraderRiskToleranceMin = 0.15
+	AiTraderRiskToleranceMax = 0.60
+	AiTraderSampleRatio      = 0.20
+	AiTraderMinStocks        = 3
+	AiTraderSignalThreshold  = 0.20
+	AiTraderSentEmaAlpha     = 0.30
+	AiTraderSentConduction   = 0.15
+	AiTraderExitCash         int64 = 10_000
+	AiTraderResupplyInterval = 100
+	AiTraderBuyDiscountMin   = 0.970  // 废弃，被 AiTraderMaxSpread 取代
+	AiTraderBuyDiscountMax   = 0.995
+	AiTraderSellPremiumMin   = 1.005
+	AiTraderSellPremiumMax   = 1.030
+	AiTraderMaxSpread        = 0.30  // 最大报价偏离幅度，信号=1时可达±30%
+	AiTraderStopLossBase     = 0.25
+	AiTraderStopLossScale    = 0.60
+	AiTraderMarketOrderThreshold = 0.50
+	AiTraderSignalJitter        = 0.15
+	AiTraderRandomSideRate      = 0.15
+	AiTraderCancelDevThreshold  = 0.05  // 挂单偏差 > 5% 撤单（约5-10档）
+	AiTraderCancelMaxAge        = 120 * time.Second  // 挂单最长存活
 )

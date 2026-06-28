@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"jjs-server/internal/bots"
 	"jjs-server/internal/config"
 	"jjs-server/internal/domain"
 	"jjs-server/internal/engine"
@@ -77,7 +78,16 @@ func main() {
 	marketH := &handler.MarketHandler{}
 	tradeH := &handler.TradeHandler{}
 	wsH := handler.NewWsHandler(hub)
-	r := router.New(authH, playerH, companyH, marketH, tradeH, wsH)
+
+	traders := bots.RestoreTraders(store.DB)
+	scheduler := bots.NewScheduler(traders)
+	scheduler.PlaceOrder = func(order *domain.Order) error {
+		_, err := engine.ExecuteOrder(store.DB, order)
+		return err
+	}
+
+	adminH := handler.NewAdminHandler(scheduler)
+	r := router.New(authH, playerH, companyH, marketH, tradeH, wsH, adminH)
 
 	srv := &http.Server{
 		Addr:         ":" + config.AppConfig.Port,
@@ -93,6 +103,7 @@ func main() {
 
 	tradingTicker := engine.NewTradingTicker()
 	tradingTicker.SetHub(hub)
+	tradingTicker.SetBotRunner(scheduler)
 	tradingTicker.Start()
 	defer tradingTicker.Stop()
 
