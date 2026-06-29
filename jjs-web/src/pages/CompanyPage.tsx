@@ -465,51 +465,55 @@ function DetailItem({ label, value, positive, hint }: {
             </Panel>
           )}
 
-          <Panel title="股权结构">
+          <Panel
+            title={company.ipo_quarter > 0 ? '股票信息' : '股权结构'}
+            headerAction={company.ipo_quarter > 0 ? (
+              <span className="text-xs text-accent-green font-semibold">已上市</span>
+            ) : undefined}
+          >
             <div className="p-3">
-              <div className="grid grid-cols-2 gap-2">
-                <MetricCard label="CEO持股" value={`${company.ceo_shares.toLocaleString()}股 (${(company.own_ratio * 100).toFixed(1)}%)`} />
-                <MetricCard label="投资方持股" value={`${company.investor_shares.toLocaleString()}股 (${((company.investor_shares / company.total_shares) * 100).toFixed(1)}%)`} />
-                <MetricCard label="总股本" value={`${company.total_shares.toLocaleString()}股`} />
-                {company.ipo_quarter > 0 && (
-                  <MetricCard label="流通股" value={`${company.public_float.toLocaleString()}股`} />
-                )}
-              </div>
+              {company.ipo_quarter > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <MetricCard label="总股本" value={`${company.total_shares.toLocaleString()}股`} />
+                    <MetricCard label="股价" value={`¥${(company.stock_price / 100).toFixed(2)}`} />
+                  </div>
+                  <div className="mt-2">
+                    <MetricCard label="市值" value={`¥${((company.stock_price * company.total_shares) / 100).toLocaleString()}`} className="text-center" />
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <MetricCard label="CEO持股" value={`${company.ceo_shares.toLocaleString()}股 (${(company.own_ratio * 100).toFixed(1)}%)`} />
+                  <MetricCard label="投资方持股" value={`${company.investor_shares.toLocaleString()}股 (${((company.investor_shares / company.total_shares) * 100).toFixed(1)}%)`} />
+                  <MetricCard label="总股本" value={`${company.total_shares.toLocaleString()}股`} />
+                </div>
+              )}
             </div>
           </Panel>
 
-          {ipoStatus && (
-            <Panel title={ipoStatus.conditions.listed ? '上市信息' : 'IPO 进度'}>
+          {ipoStatus && !ipoStatus.conditions.listed && (
+            <Panel title="IPO 进度">
               <div className="p-3">
-                {ipoStatus.conditions.listed ? (
-                  <div className="text-sm text-text-secondary">
-                    <span className="text-accent-green font-semibold">已上市</span>
-                    <span className="ml-2">Q{ipoStatus.conditions.ipo_quarter}</span>
-                    <span className="ml-4">流通股 {company.public_float.toLocaleString()} 股</span>
+                <ConditionBar label="运营季度" item={ipoStatus.conditions.quarters} suffix="季" />
+                <ConditionBar label="连续盈利" item={ipoStatus.conditions.consecutive_profit} suffix="季" />
+                <ConditionBar label="现金储备" item={ipoStatus.conditions.cash} suffix="¥" isCurrency />
+                <ConditionBar label="近4季营收" item={ipoStatus.conditions.annual_revenue} suffix="¥" isCurrency />
+                <div className="mt-3 pt-3 border-t border-border">
+                  <div className="text-xs text-text-muted mb-2">估值预览</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <MetricLabel label="NAV" value={`¥${ipoStatus.conditions.detail.nav.toFixed(2)}`} tooltip="(现金 + 固定资产) ÷ 总股本" />
+                    <MetricLabel label="EPS" value={`¥${ipoStatus.conditions.detail.eps.toFixed(4)}`} tooltip="近4季平均净利润 ÷ 总股本" />
+                    <MetricLabel label="PE" value={`${ipoStatus.conditions.detail.pe}×`} tooltip="行业基准市盈率" />
                   </div>
-                ) : (
-                  <>
-                    <ConditionBar label="运营季度" item={ipoStatus.conditions.quarters} suffix="季" />
-                    <ConditionBar label="连续盈利" item={ipoStatus.conditions.consecutive_profit} suffix="季" />
-                    <ConditionBar label="现金储备" item={ipoStatus.conditions.cash} suffix="¥" isCurrency />
-                    <ConditionBar label="近4季营收" item={ipoStatus.conditions.annual_revenue} suffix="¥" isCurrency />
-                    <div className="mt-3 pt-3 border-t border-border">
-                      <div className="text-xs text-text-muted mb-2">估值预览</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <MetricLabel label="NAV" value={`¥${ipoStatus.conditions.detail.nav.toFixed(2)}`} tooltip="(现金 + 固定资产) ÷ 总股本" />
-                        <MetricLabel label="EPS" value={`¥${ipoStatus.conditions.detail.eps.toFixed(4)}`} tooltip="近4季平均净利润 ÷ 总股本" />
-                        <MetricLabel label="PE" value={`${ipoStatus.conditions.detail.pe}×`} tooltip="行业基准市盈率" />
-                      </div>
-                      <button
-                        className={`btn btn-full mt-2 ${ipoStatus.eligible ? 'btn-primary' : 'cursor-not-allowed bg-bg-card border border-border/50 text-text-muted'}`}
-                        disabled={!ipoStatus.eligible}
-                        onClick={() => setShowIpo(true)}
-                      >
-                        {ipoStatus.eligible ? '🚀 发起 IPO' : '条件未满足'}
-                      </button>
-                    </div>
-                  </>
-                )}
+                  <button
+                    className={`btn btn-full mt-2 ${ipoStatus.eligible ? 'btn-primary' : 'cursor-not-allowed bg-bg-card border border-border/50 text-text-muted'}`}
+                    disabled={!ipoStatus.eligible}
+                    onClick={() => setShowIpo(true)}
+                  >
+                    {ipoStatus.eligible ? '🚀 发起 IPO' : '条件未满足'}
+                  </button>
+                </div>
               </div>
             </Panel>
           )}
@@ -1244,7 +1248,6 @@ function DetailItem({ label, value, positive, hint }: {
                 <div className="space-y-2">
                   <p>满足条件后，发起IPO时选择<span className="text-accent-blue">增发比例</span>（滑块自选），决定多少股份放入市场流通。</p>
                   <p><span className="text-accent-gold font-semibold">发行价 = 理论股价 × 0.95</span>（IPO承销折扣）。</p>
-                  <p>上市后你的<span className="text-accent-red font-semibold">CEO股份锁定4季度</span>，期间不能卖出。</p>
                   <p>公司股价从此由<span className="text-accent-green">市场撮合引擎</span>决定——买卖供需决定价格，不再等于理论估值。</p>
                 </div>
 

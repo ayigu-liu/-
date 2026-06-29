@@ -162,7 +162,7 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 
 	broker := &domain.BrokerInventory{
 		StockID:  stock.ID,
-		TotalQty: floatShares,
+		TotalQty: floatShares + company.InvestorShares,
 	}
 	if err := tx.Create(broker).Error; err != nil {
 		tx.Rollback()
@@ -170,13 +170,29 @@ func (h *CompanyHandler) IPO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	holding, err := store.GetOrCreateHolding(tx, userID, stock.ID)
+	if err != nil {
+		tx.Rollback()
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "创建CEO持仓失败"})
+		return
+	}
+	holding.Qty = company.CEOShares
+	holding.AvgCost = ipoPrice
+	if err := store.SaveHolding(tx, holding); err != nil {
+		tx.Rollback()
+		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "更新CEO持仓失败"})
+		return
+	}
+
 	newTotalShares := company.TotalShares + floatShares
 	if err := tx.Model(company).Updates(map[string]interface{}{
-		"cash":          company.Cash + raisedCash,
-		"total_shares":  newTotalShares,
-		"public_float":  floatShares,
-		"ipo_quarter":   currentQ,
-		"updated_at":    time.Now(),
+		"cash":            company.Cash + raisedCash,
+		"total_shares":    newTotalShares,
+		"public_float":    floatShares,
+		"ceo_shares":      0,
+		"investor_shares": 0,
+		"ipo_quarter":     currentQ,
+		"updated_at":      time.Now(),
 	}).Error; err != nil {
 		tx.Rollback()
 		WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "更新公司状态失败"})

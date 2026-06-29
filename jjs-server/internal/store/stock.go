@@ -28,6 +28,14 @@ func GetStockBySymbol(symbol string) (*domain.Stock, error) {
 	return &s, nil
 }
 
+func GetStockByCompanyID(companyID uint) (*domain.Stock, error) {
+	var s domain.Stock
+	if err := DB.Where("company_id = ?", companyID).First(&s).Error; err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
 func UpdateStockFromTrade(tx *gorm.DB, stockID uint, price int64) error {
 	return tx.Model(&domain.Stock{}).Where("id = ?", stockID).Update("current_price", price).Error
 }

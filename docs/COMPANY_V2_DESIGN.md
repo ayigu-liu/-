@@ -644,8 +644,9 @@ CompanyQuarterly 表（季度快照）：
   矿业:   通过首次预结算设置 CapCount = MiningInitialReserves(50,000)
 
 IPO:
-  公司创建后不可在二级市场交易（IpoQuarter = 0），需达成 IPO 条件后方可上市
-  详见 §十六。
+   公司创建后不可在二级市场交易（IpoQuarter = 0），需达成 IPO 条件后方可上市。
+   IPO 时 CEO 持股转为个人持仓、投资方持股与增发股一同进入证券机构库存。
+   详见 §十六。
 ```
 
 ### 14.3 后端目录
@@ -681,7 +682,7 @@ jjs-web/src/
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
 | POST | `/api/company/create` | JWT | 创建公司（含融资参数：investor_shares/player_investment），自动扣玩家现金 |
-| GET | `/api/company/state` | JWT | 公司完整状态（含 ceo_shares/investor_shares/own_ratio + 季度历史） |
+| GET | `/api/company/state` | JWT | 公司完整状态（含 ceo_shares/investor_shares/own_ratio + 季度历史）。IPO 后 ceo_shares/investor_shares 归零（已转入持仓/库存），通过 holdings endpoint 查询实际持仓。 |
 
 *注：路径不使用 `/v2/` 前缀，重写即为新系统。*
 
@@ -767,22 +768,24 @@ python3 simulate_v2.py
 
 ```
 创建时:
-  CEOShares      = 10,000  (固定)
-  InvestorShares = X       (玩家输入，1万-20万股)
-  TotalShares    = 10,000 + X
+  CEOShares      = 100,000  (固定)
+  InvestorShares = X        (玩家输入，10万-190万股)
+  TotalShares    = 100,000 + X
 
 IPO 增发后:
   PublicFloat    = TotalShares(IPO前) × 增发比例
-  TotalShares    = 10,000 + InvestorShares + PublicFloat
+  TotalShares    = 100,000 + InvestorShares + PublicFloat
 ```
 
-三种股份类型：
+三种股份的 IPO 后流向：
 
-| 类型 | 来源 | 二级市场可交易？ | 特殊规则 |
-|------|------|----------------|---------|
-| CEO 持股 | 创始人，固定100,000股 | IPO 后锁仓 4 季，之后通过减持 action 释放 | 每年限减持 ≤ TotalShares×5% |
-| 投资方持股 | 公司创建时的外部融资方 | 暂不可交易 | 后续可扩展锁仓/减持机制 |
-| 流通股 | IPO 增发 | 可自由交易 | 初始全部进入证券机构 |
+| 类型 | 来源 | IPO 后流向 | 交易规则 |
+|------|------|-----------|---------|
+| CEO 持股 | 创始人，固定 100,000 股 | 转为 CEO 玩家的个人股票持仓（Holdings 表），AvgCost = IPO 发行价 | 二级市场自由交易，与普通持仓无异 |
+| 投资方持股 | 公司创建时的外部融资方 | 与 IPO 增发股一起进入证券机构库存（BrokerInventory） | 由证券机构逐步释放到市场 |
+| 流通股 | IPO 增发 | 进入证券机构库存（BrokerInventory） | 由证券机构逐步释放到二级市场 |
+
+> **设计简化**：无锁定期、无减持/增持 action。上市即解禁，所有股份纳入同一交易体系。投资者可通过市场页看到各股票在 BrokerInventory 中的待释放库存量。
 
 ### 16.3 IPO 条件
 
@@ -808,19 +811,7 @@ IpoQuarter  = 当前全局季度号
 
 IPO 即时执行，不等待季度结算。
 
-### 16.5 CEO 减持（公司行动）
-
-| 约束 | 值 |
-|------|-----|
-| 解锁条件 | 当前季度 ≥ IpoQuarter + 4 |
-| 操作方式 | 消耗 1 次 action（每季 3 次限额之一） |
-| 每次上限 | `min(CEO当前持股, TotalShares × 5%)` |
-| 收益 | 减持股数 × 当前市价 → CEO 个人现金账户 |
-| 操作步骤 | CEO 持股 → 等量加入 BrokerInventory → 逐步释放到市场 |
-
-> **按总股本 5% 而非自身持股比例限制**，避免永远无法清仓的递减问题。若 CEO 持股 ≤ TotalShares×5%，可一次性清仓。
-
-### 16.6 证券机构库存释放机制
+### 16.5 证券机构库存释放机制
 
 IPO 增发的全部流通股先进入证券机构（BrokerInventory 表），由其逐步释放到二级市场：
 
@@ -836,7 +827,7 @@ IPO 增发的全部流通股先进入证券机构（BrokerInventory 表），由
 
 `BrokerInventory.FrozenQty` 字段预留未来做空融券使用，当前固定为 0。
 
-### 16.7 交易模型：限价单与市价单
+### 16.6 交易模型：限价单与市价单
 
 | | 限价单 (Limit) | 市价单 (Market) |
 |---|---|---|

@@ -416,7 +416,7 @@ internal/engine/
 
 | 文件 | 用途 |
 |------|------|
-| `COMPANY_V2_DESIGN.md` §十六 | IPO 机制、股份结构、减持、证券机构 |
+| `COMPANY_V2_DESIGN.md` §十六 | IPO 机制、股份结构、证券机构 |
 | `COMPANY_V2_DESIGN.md` §十一 | 股价公式、总资产/NAV/EPS |
 | `backend/game_engine.py` | 引擎逻辑参考 |
 | `backend/schemas.py` | WS 消息格式参考 |
@@ -498,8 +498,7 @@ Body: { float_ratio: 0.10~0.50 }
 - `types/index.ts`：`CompanyState` 新增 `investor_shares`/`ipo_quarter`/`public_float`
 
 **待完成**:
-- ⏳ CEO 减持 action 扩展（`handler/action.go`，IPO+4季度后可执行）
-
+-
 **产出**: IPO 端点 + IPO 状态端点 + 前端 IPO 完整交互。
 
 ### P3.3: 订单簿与撮合引擎 ✅ 完成 (2026-06-24)
@@ -517,7 +516,7 @@ internal/engine/
 internal/store/
 ├── order.go         # CRUD + 按price/seq排序查询 + stale订单查询
 ├── trade.go         # 创建成交
-├── holding.go       # upsert + 增减持 + 冻结/解冻（FrozenQty）
+├── holding.go       # upsert + 冻结/解冻（FrozenQty）
 ├── stock.go         # List/UpdateOHLCV/SnapshotOrderBook(SQL GROUP BY price LIMIT 5)
 ├── candle.go        # UpsertCandleWithTx (ON DUPLICATE KEY UPDATE)
 └── broker.go        # 库存查询 + 扣减
@@ -657,7 +656,6 @@ internal/handler/
 - ✅ IndustryConfig.CapAssetValue + 矿业勘探期望调至 60k (P3.1)
 - ✅ Symbol 前缀+自增序号生成 (P3.1)
 - ✅ 创建公司 API: total_shares → investor_shares 输入翻转 (P3.1)
-- ⏳ CEO 减持 action 扩展 (P3.2 遗留)
 - ✅ 订单簿撮合引擎 (limit/market, 无做空, DB驱动) (P3.3)
 - ✅ 证券机构库存释放机制（BROKER系统账号, 每5tick, stale buys 10tick） (P3.3)
 - ✅ 2s tick 主循环 + 行情更新 (Change/ChangePercent) (P3.4)

@@ -194,6 +194,7 @@ export interface CompanyState {
   last_quarterly: QuarterlyReport | null
   pending_orders: PendingOrderInfo[]
   actions_submitted: number
+  stock_price: number
 }
 
 export type Industry = 'tech' | 'finance' | 'manufacturing' | 'mining' | 'consumer' | 'healthcare'

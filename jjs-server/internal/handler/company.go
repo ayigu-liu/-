@@ -66,6 +66,7 @@ type companyStateResponse struct {
 	LastQuarterly    *domain.CompanyQuarterly `json:"last_quarterly"`
 	PendingOrders    []PendingOrderInfo       `json:"pending_orders"`
 	ActionsSubmitted int                      `json:"actions_submitted"`
+	StockPrice       int64                    `json:"stock_price"`
 }
 
 var industryPrefix = map[string]string{
@@ -453,6 +454,13 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var stockPrice int64
+	if company.IpoQuarter > 0 {
+		if s, err := store.GetStockByCompanyID(company.ID); err == nil {
+			stockPrice = s.CurrentPrice
+		}
+	}
+
 	WriteJSON(w, http.StatusOK, companyStateResponse{
 		ID:               company.ID,
 		Symbol:           company.Symbol,
@@ -478,5 +486,6 @@ func (h *CompanyHandler) State(w http.ResponseWriter, r *http.Request) {
 		LastQuarterly:    lastQ,
 		PendingOrders:    pendingList,
 		ActionsSubmitted: actionsSubmitted,
+		StockPrice:       stockPrice,
 	})
 }
