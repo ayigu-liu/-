@@ -157,6 +157,7 @@ export function CompanyPage() {
     try {
       await api.post<ActionResponse>('/company/actions', { actions: [{ type, amount }] })
       setActionsSubmitted(prev => prev + 1)
+      setShowActions(false)
       setActionView('selection')
       setActionAmount(0)
       queryClient.invalidateQueries({ queryKey: ['company'] })
@@ -336,6 +337,20 @@ function DetailItem({ label, value, positive, hint }: {
           const assetSellPrice = isMfg ? 80000 * 0.75 : 2.0 * 0.75
           const marketingMinPerYuan = isMfg ? 0.075 : 0.125
           const marketingMaxPerYuan = isMfg ? 0.175 : 0.292
+          const perWorkerOutput = isMfg ? 2000 : 1500
+          const outputUnit = isMfg ? '件' : '单位'
+
+          const mfgLabels = { expand: '新建产线', expandUnit: '条', sellLabel: '出售产线数', sellUnit: '条' }
+          const resLabels = { expand: '勘探矿脉', expandUnit: '次', sellLabel: '出售矿权数', sellUnit: '单位' }
+          const ind = isMfg ? mfgLabels : resLabels
+
+          const actionConfig: Record<string, { title: string; inputLabel: string; unit: string }> = {
+            expand: { title: ind.expand, inputLabel: `${ind.expand}数量`, unit: ind.expandUnit },
+            hire: { title: '招募员工', inputLabel: '招募岗位数', unit: '岗位' },
+            layoff: { title: '裁员', inputLabel: '裁员人数', unit: '人' },
+            sell_assets: { title: '资产处置', inputLabel: ind.sellLabel, unit: ind.sellUnit },
+            marketing: { title: '营销推广', inputLabel: '投入金额', unit: '¥' },
+          }
 
           let maxAmount: number
           let cost: number
@@ -347,7 +362,7 @@ function DetailItem({ label, value, positive, hint }: {
             maxAmount = Math.floor(company.cash / hireUnitCost)
             cost = actionAmount * hireUnitCost
           } else if (actionView === 'layoff') {
-            maxAmount = Math.min(company.employees, Math.floor(company.cash / layoffUnitCost))
+            maxAmount = company.employees
             cost = actionAmount * layoffUnitCost
           } else if (actionView === 'sell_assets') {
             maxAmount = company.cap_count
@@ -360,7 +375,7 @@ function DetailItem({ label, value, positive, hint }: {
 
           const remaining = 3 - actionsSubmitted
           const canSubmit =
-            actionView === 'sell_assets'
+            actionView === 'sell_assets' || actionView === 'layoff'
               ? actionAmount > 0 && remaining > 0
               : actionAmount > 0 && cost <= company.cash && remaining > 0
 
@@ -738,7 +753,7 @@ function DetailItem({ label, value, positive, hint }: {
                         ← 返回
                       </button>
                       <span className="text-sm font-semibold text-text-primary">
-                        {actionView === 'expand' ? (isMfg ? '新建产线' : '勘探矿脉') : actionView === 'hire' ? '招募员工' : actionView === 'layoff' ? '裁员' : actionView === 'sell_assets' ? '资产处置' : '营销推广'}
+                        {actionConfig[actionView]?.title}
                       </span>
                     </div>
 
@@ -746,15 +761,11 @@ function DetailItem({ label, value, positive, hint }: {
                       <div>
                         <div className="flex justify-between text-xs text-text-secondary mb-1">
                           <span>
-                            {actionView === 'expand' ? (isMfg ? '新建产线数量' : '勘探次数')
-                              : actionView === 'hire' ? '招募岗位数'
-                              : actionView === 'layoff' ? '裁员人数'
-                              : actionView === 'sell_assets' ? (isMfg ? '出售产线数' : '出售矿权数')
-                              : '投入金额'}
+                            {actionConfig[actionView]?.inputLabel}
                           </span>
                           <span className="text-text-primary font-semibold">
                             {actionAmount.toLocaleString()}{' '}
-                            {actionView === 'expand' ? (isMfg ? '条' : '次') : actionView === 'sell_assets' ? (isMfg ? '条' : '单位') : actionView === 'marketing' ? '¥' : '人'}
+                            {actionConfig[actionView]?.unit}
                           </span>
                         </div>
                         <input
@@ -772,20 +783,46 @@ function DetailItem({ label, value, positive, hint }: {
                               <span>¥{expUnitCost.toLocaleString()}/{isMfg ? '条' : '次'}</span>
                               <span>{isMfg ? '1季后投产' : '2季后完工 · 储量随机（2万~16万单位）'}</span>
                             </>
-                          ) : actionView === 'hire' ? (
-                            <>
-                              <span>¥{hireUnitCost.toLocaleString()}/岗</span>
-                              {actionAmount > 0 && (
-                                <span>预计实招 {Math.round(actionAmount * 0.3)}~{actionAmount} 人</span>
-                              )}
-                            </>
-                          ) : actionView === 'layoff' ? (
-                            <>
-                              <span>¥{layoffUnitCost.toLocaleString()}/人（3倍季度工资）</span>
-                              {actionAmount > 0 && (
-                                <span>当前 {company.employees} 人 → {company.employees - actionAmount} 人</span>
-                              )}
-                            </>
+                           ) : actionView === 'hire' ? (
+                            <div className="flex flex-col gap-0.5 w-full">
+                              <div className="flex justify-between">
+                                <span>¥{hireUnitCost.toLocaleString()}/岗</span>
+                                {actionAmount > 0 && (
+                                  <span>预计实招 {Math.round(actionAmount * 0.3)}~{actionAmount} 人</span>
+                                )}
+                              </div>
+                              {actionAmount > 0 && (() => {
+                                const minRecruit = Math.round(actionAmount * 0.3)
+                                const maxRecruit = actionAmount
+                                const minNew = Math.min((company.employees + minRecruit) * perWorkerOutput, company.capacity_ceiling)
+                                const maxNew = Math.min((company.employees + maxRecruit) * perWorkerOutput, company.capacity_ceiling)
+                                return (
+                                  <div className="flex justify-between">
+                                    <span>预期产能</span>
+                                    <span>{company.actual_output.toLocaleString()} → {minNew.toLocaleString()}~{maxNew.toLocaleString()} {outputUnit}/季</span>
+                                  </div>
+                                )
+                              })()}
+                            </div>
+                           ) : actionView === 'layoff' ? (
+                            <div className="flex flex-col gap-0.5 w-full">
+                              <div className="flex justify-between">
+                                <span>¥{layoffUnitCost.toLocaleString()}/人（3倍季度工资）</span>
+                                {actionAmount > 0 && (
+                                  <span>当前 {company.employees} 人 → {company.employees - actionAmount} 人</span>
+                                )}
+                              </div>
+                              {actionAmount > 0 && (() => {
+                                const newEmp = company.employees - actionAmount
+                                const newOutput = Math.min(newEmp * perWorkerOutput, company.capacity_ceiling)
+                                return (
+                                  <div className="flex justify-between">
+                                    <span>预期产能</span>
+                                    <span>{company.actual_output.toLocaleString()} → {newOutput.toLocaleString()} {outputUnit}/季</span>
+                                  </div>
+                                )
+                              })()}
+                            </div>
                           ) : actionView === 'sell_assets' ? (
                             <span>{isMfg ? `¥${Math.round(80000 * 0.75).toLocaleString()}/条 · 当前 ${company.cap_count} 条` : `¥${(2.0 * 0.75).toFixed(1)}/单位 · 当前 ${company.cap_count.toLocaleString()} 单位`}</span>
                           ) : actionAmount > 0 ? (
@@ -813,12 +850,12 @@ function DetailItem({ label, value, positive, hint }: {
                       >
                         {actionAmount === 0
                           ? '请选择数量'
-                          : actionView === 'sell_assets'
+                          : actionView === 'sell_assets' || actionView === 'layoff'
                           ? remaining <= 0
                             ? '操作次数已用完'
                             : submittingActions
                             ? '提交中...'
-                            : '确认出售'
+                            : actionView === 'sell_assets' ? '确认出售' : '确认裁员'
                           : cost > company.cash
                           ? '公司现金不足'
                           : remaining <= 0
