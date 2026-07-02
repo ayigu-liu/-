@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"log/slog"
-	"math"
 	"math/rand"
 
 	"jjs-server/internal/store"
@@ -11,39 +10,30 @@ import (
 
 func WalkProsperity(oldProsperity float64, cfg IndustryConfig) float64 {
 	halfRange := (cfg.ProsperityMax - cfg.ProsperityMin) / 2
+	deviation := (oldProsperity - 1.0) / halfRange // [-1, +1]
 
-	// deviation from center (1.0), normalized to [-1, +1]
-	deviation := (oldProsperity - 1.0) / halfRange
-
-	// regression strength proportional to how far from center
-	regressionShare := math.Abs(deviation) * cfg.ProsperityRegression
-	randomShare := 1.0 - regressionShare
-
-	// random walk: random(-maxStep, +maxStep) * randomShare
-	randomStep := (rand.Float64()*2 - 1) * cfg.ProsperityMaxStep * randomShare
-
-	// regression pull towards 1.0: -deviation * maxStep * regressionShare
-	regressionStep := -deviation * cfg.ProsperityMaxStep * regressionShare
-
-	change := randomStep + regressionStep
-
-	// clamp change to [-maxStep, +maxStep]
-	if change > cfg.ProsperityMaxStep {
-		change = cfg.ProsperityMaxStep
-	} else if change < -cfg.ProsperityMaxStep {
-		change = -cfg.ProsperityMaxStep
+	// 修正脉冲：覆盖当季正常步长
+	if rand.Float64() < cfg.CorrectionProb {
+		pulse := -deviation * cfg.CorrectionPulse
+		return clamp(oldProsperity+pulse, cfg.ProsperityMin, cfg.ProsperityMax)
 	}
 
-	newProsperity := oldProsperity + change
+	// 正常季度：随机 + 回归
+	randomStep := (rand.Float64()*2 - 1) * cfg.ProsperityMaxStep
+	regressionStep := -deviation * cfg.ProsperityRegression
 
-	// clamp final value to [min, max]
-	if newProsperity > cfg.ProsperityMax {
-		newProsperity = cfg.ProsperityMax
-	} else if newProsperity < cfg.ProsperityMin {
-		newProsperity = cfg.ProsperityMin
+	change := clamp(randomStep+regressionStep, -cfg.ProsperityMaxStep, cfg.ProsperityMaxStep)
+
+	return clamp(oldProsperity+change, cfg.ProsperityMin, cfg.ProsperityMax)
+}
+
+func clamp(v, lo, hi float64) float64 {
+	if v < lo {
+		return lo
+	} else if v > hi {
+		return hi
 	}
-
-	return newProsperity
+	return v
 }
 
 func RestoreOrSeedGlobalQuarter() error {
